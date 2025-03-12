@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { toast } from '@/components/ui/sonner';
 import FileUpload from '@/components/FileUpload';
@@ -8,9 +7,7 @@ import { processFile, downloadFile } from '@/utils/fileProcessing';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft } from 'lucide-react';
-
-// Import the xlsx library for file processing
-import { lov-add-dependency>xlsx@0.18.5</lov-add-dependency>
+import * as XLSX from 'xlsx';
 
 enum AppStep {
   UPLOAD,
@@ -41,7 +38,6 @@ const Index = () => {
 
     try {
       if (selectedFile) {
-        // Process the file with the provided column mappings
         const result = await processFile(selectedFile, mapping as any);
         setProcessedFile(result);
         setCurrentStep(AppStep.COMPLETE);
@@ -54,7 +50,6 @@ const Index = () => {
       toast.error('Error processing file', {
         description: error instanceof Error ? error.message : 'An unknown error occurred'
       });
-      // Go back to upload step on error
       resetApp();
     }
   };
@@ -74,7 +69,6 @@ const Index = () => {
   };
 
   const handleBack = () => {
-    // Go back one step
     if (currentStep === AppStep.COLUMN_MAPPING) {
       setCurrentStep(AppStep.UPLOAD);
     }
@@ -95,7 +89,6 @@ const Index = () => {
       </header>
 
       <main className="flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-center py-12">
-        {/* Step indicator */}
         <div className="w-full max-w-2xl mx-auto mb-8">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-medium">
@@ -127,7 +120,6 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Step content */}
         <div className="w-full transition-all duration-300 ease-in-out">
           {currentStep === AppStep.UPLOAD && (
             <div className="animate-fade-in">
