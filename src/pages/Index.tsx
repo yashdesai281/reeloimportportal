@@ -4,10 +4,11 @@ import { toast } from '@/hooks/use-toast';
 import FileUpload from '@/components/FileUpload';
 import ColumnMapping from '@/components/ColumnMapping';
 import ProcessingStatus from '@/components/ProcessingStatus';
+import ProcessingHistory from '@/components/ProcessingHistory';
 import { processFile, downloadFile } from '@/utils/fileProcessing';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Upload, History } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
 
@@ -29,16 +30,14 @@ const Index = () => {
   const [columnMapping, setColumnMapping] = useState<Record<string, number> | null>(null);
   const [processedFile, setProcessedFile] = useState<ProcessedFile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [viewMode, setViewMode] = useState<'upload' | 'history'>('upload');
 
   // Check Supabase connection on load
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const { data, error } = await supabase.from('_dummy_query').select('*').limit(1);
-        if (error) {
-          console.log('Supabase connection check:', error.message);
-          // This is expected since the table doesn't exist yet, but confirms Supabase is reachable
-        }
+        const { data, error } = await supabase.from('processed_files').select('count').single();
+        console.log('Supabase connection check:', data !== null ? 'Connected' : 'Error');
         setIsLoading(false);
       } catch (err) {
         console.error('Error connecting to Supabase:', err);
@@ -127,70 +126,101 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-center py-12">
-        <div className="w-full max-w-2xl mx-auto mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-medium">
-              {currentStep === AppStep.UPLOAD && 'Upload File'}
-              {currentStep === AppStep.COLUMN_MAPPING && 'Map Columns'}
-              {currentStep === AppStep.PROCESSING && 'Processing'}
-              {currentStep === AppStep.COMPLETE && 'Complete'}
-            </h2>
-            
-            {currentStep !== AppStep.UPLOAD && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={resetApp}
-                className="text-muted-foreground"
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Start Over
-              </Button>
-            )}
-          </div>
-          <div className="w-full bg-secondary h-1 rounded-full overflow-hidden">
-            <div 
-              className="bg-primary h-full transition-all duration-500 ease-in-out"
-              style={{ 
-                width: `${(currentStep / (Object.keys(AppStep).length / 2 - 1)) * 100}%` 
-              }}
-            ></div>
-          </div>
+      <main className="flex-1 w-full max-w-4xl mx-auto flex flex-col items-center justify-center py-6">
+        <div className="w-full max-w-md mx-auto mb-8 flex bg-muted/30 rounded-lg p-1">
+          <Button 
+            variant={viewMode === 'upload' ? 'default' : 'ghost'} 
+            size="sm" 
+            className="flex-1 gap-1.5" 
+            onClick={() => setViewMode('upload')}
+          >
+            <Upload className="h-4 w-4" />
+            Upload & Process
+          </Button>
+          <Button 
+            variant={viewMode === 'history' ? 'default' : 'ghost'} 
+            size="sm" 
+            className="flex-1 gap-1.5" 
+            onClick={() => setViewMode('history')}
+          >
+            <History className="h-4 w-4" />
+            History
+          </Button>
         </div>
 
-        <div className="w-full transition-all duration-300 ease-in-out">
-          {currentStep === AppStep.UPLOAD && (
-            <div className="animate-fade-in">
-              <FileUpload 
-                onFileSelected={handleFileSelected} 
-                accept=".csv,.xlsx,.xls" 
-              />
+        {viewMode === 'upload' && (
+          <>
+            <div className="w-full max-w-2xl mx-auto mb-8">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-medium">
+                  {currentStep === AppStep.UPLOAD && 'Upload File'}
+                  {currentStep === AppStep.COLUMN_MAPPING && 'Map Columns'}
+                  {currentStep === AppStep.PROCESSING && 'Processing'}
+                  {currentStep === AppStep.COMPLETE && 'Complete'}
+                </h2>
+                
+                {currentStep !== AppStep.UPLOAD && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={resetApp}
+                    className="text-muted-foreground"
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Start Over
+                  </Button>
+                )}
+              </div>
+              <div className="w-full bg-secondary h-1 rounded-full overflow-hidden">
+                <div 
+                  className="bg-primary h-full transition-all duration-500 ease-in-out"
+                  style={{ 
+                    width: `${(currentStep / (Object.keys(AppStep).length / 2 - 1)) * 100}%` 
+                  }}
+                ></div>
+              </div>
             </div>
-          )}
 
-          {currentStep === AppStep.COLUMN_MAPPING && (
-            <div className="animate-fade-in">
-              <ColumnMapping 
-                step={1} 
-                onComplete={handleColumnMappingComplete}
-                onBack={handleBack}
-              />
-            </div>
-          )}
+            <div className="w-full transition-all duration-300 ease-in-out">
+              {currentStep === AppStep.UPLOAD && (
+                <div className="animate-fade-in">
+                  <FileUpload 
+                    onFileSelected={handleFileSelected} 
+                    accept=".csv,.xlsx,.xls" 
+                  />
+                </div>
+              )}
 
-          {(currentStep === AppStep.PROCESSING || currentStep === AppStep.COMPLETE) && (
-            <div className="animate-fade-in">
-              <ProcessingStatus
-                isProcessing={currentStep === AppStep.PROCESSING}
-                isComplete={currentStep === AppStep.COMPLETE}
-                fileName={processedFile?.fileName || null}
-                onDownload={handleDownload}
-                onReset={resetApp}
-              />
+              {currentStep === AppStep.COLUMN_MAPPING && (
+                <div className="animate-fade-in">
+                  <ColumnMapping 
+                    step={1} 
+                    onComplete={handleColumnMappingComplete}
+                    onBack={handleBack}
+                  />
+                </div>
+              )}
+
+              {(currentStep === AppStep.PROCESSING || currentStep === AppStep.COMPLETE) && (
+                <div className="animate-fade-in">
+                  <ProcessingStatus
+                    isProcessing={currentStep === AppStep.PROCESSING}
+                    isComplete={currentStep === AppStep.COMPLETE}
+                    fileName={processedFile?.fileName || null}
+                    onDownload={handleDownload}
+                    onReset={resetApp}
+                  />
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
+
+        {viewMode === 'history' && (
+          <div className="w-full max-w-2xl mx-auto animate-fade-in">
+            <ProcessingHistory />
+          </div>
+        )}
       </main>
 
       <footer className="w-full py-6 border-t bg-white/50 backdrop-blur-sm">

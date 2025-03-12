@@ -1,105 +1,113 @@
 
 import * as XLSX from 'xlsx';
-import { read, utils, write } from 'xlsx';
+import { supabase } from '@/lib/supabase';
 
-interface ColumnMapping {
+export interface ColumnMapping {
   mobile: number;
   bill_number: number;
   bill_amount: number;
   order_time: number;
 }
 
-export const processFile = async (
-  file: File, 
-  columnMapping: ColumnMapping
-): Promise<{ data: any; fileName: string }> => {
-  try {
-    const fileExtension = file.name.split('.').pop()?.toLowerCase();
-    const isExcel = fileExtension === 'xlsx' || fileExtension === 'xls';
-    
-    // Create file buffer from the file
-    const buffer = await file.arrayBuffer();
-    
-    // Parse the file based on its type
-    let rawData;
-    if (isExcel) {
-      const workbook = read(buffer);
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      rawData = utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-    } else {
-      // Assume CSV
-      const workbook = read(buffer, { type: 'array' });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      rawData = utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+export async function processFile(file: File, mapping: ColumnMapping): Promise<{ data: Blob; fileName: string }> {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Read the file
+      const fileReader = new FileReader();
+      
+      fileReader.onload = async (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const firstSheet = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheet];
+          
+          // Convert to JSON
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          // Process based on mapping
+          const processedData = processData(jsonData, mapping);
+          
+          // Convert back to workbook
+          const processedWorkbook = XLSX.utils.book_new();
+          const processedWorksheet = XLSX.utils.aoa_to_sheet(processedData);
+          XLSX.utils.book_append_sheet(processedWorkbook, processedWorksheet, 'Processed Data');
+          
+          // Generate processed file
+          const processedExcel = XLSX.write(processedWorkbook, { bookType: 'xlsx', type: 'binary' });
+          const processedBlob = new Blob(
+            [s2ab(processedExcel)], 
+            { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+          );
+          
+          // Generate filename
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const fileName = `processed_${timestamp}.xlsx`;
+          
+          // Store metadata in Supabase
+          const { error } = await supabase
+            .from('processed_files')
+            .insert({
+              file_name: fileName,
+              original_file_name: file.name,
+              column_mapping: mapping,
+            });
+          
+          if (error) {
+            console.error('Error storing file metadata:', error);
+          }
+          
+          resolve({ data: processedBlob, fileName });
+        } catch (error) {
+          console.error('Processing error:', error);
+          reject(error);
+        }
+      };
+      
+      fileReader.onerror = (error) => {
+        reject(error);
+      };
+      
+      fileReader.readAsBinaryString(file);
+    } catch (error) {
+      reject(error);
     }
-    
-    // Ensure we have data
-    if (!rawData || rawData.length === 0) {
-      throw new Error('The file appears to be empty');
-    }
-    
-    // Process the data
-    const processedData = processData(rawData, columnMapping);
-    
-    // Create a new workbook with the processed data
-    const newWorkbook = XLSX.utils.book_new();
-    const newWorksheet = XLSX.utils.aoa_to_sheet(processedData);
-    XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, 'Processed Data');
-    
-    // Generate a buffer for the processed file
-    const outputBuffer = XLSX.write(newWorkbook, { type: 'array', bookType: 'csv' });
-    
-    // Create a Blob from the buffer
-    const blob = new Blob([outputBuffer], { type: 'text/csv' });
-    
-    // Generate a filename for the processed file
-    const originalName = file.name.split('.')[0];
-    const newFileName = `${originalName}_processed.csv`;
-    
-    return {
-      data: blob,
-      fileName: newFileName
-    };
-  } catch (error) {
-    console.error('Error processing file:', error);
-    throw error;
+  });
+}
+
+function processData(data: any[][], mapping: ColumnMapping): any[][] {
+  // Create header row for new file
+  const header = ['Mobile Number', 'Bill Number', 'Bill Amount', 'Order Time'];
+  
+  // Process each row according to the mapping
+  const processedRows = data.slice(1).map(row => [
+    row[mapping.mobile - 1],       // Mobile Number
+    row[mapping.bill_number - 1],  // Bill Number
+    row[mapping.bill_amount - 1],  // Bill Amount
+    row[mapping.order_time - 1],   // Order Time
+  ]);
+  
+  // Return processed data with header
+  return [header, ...processedRows];
+}
+
+// Convert string to ArrayBuffer
+function s2ab(s: string): ArrayBuffer {
+  const buf = new ArrayBuffer(s.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < s.length; i++) {
+    view[i] = s.charCodeAt(i) & 0xFF;
   }
-};
+  return buf;
+}
 
-const processData = (data: any[], columnMapping: ColumnMapping): any[][] => {
-  // Create header row
-  const headerRow = ['mobile', 'txn_type', 'bill_number', 'bill_amount', 'order_time', 'points_earned', 'points_redeemed'];
-  
-  // Process data rows
-  const dataRows = data.slice(1).map(row => {
-    // Only process rows that have at least one value
-    if (row.some(cell => cell !== '')) {
-      return [
-        // Extract values based on the column mapping (subtract 1 as arrays are 0-indexed)
-        row[columnMapping.mobile - 1] || '',
-        'purchase', // Always set to "purchase"
-        row[columnMapping.bill_number - 1] || '',
-        row[columnMapping.bill_amount - 1] || '',
-        row[columnMapping.order_time - 1] || '',
-        '', // Empty for points_earned
-        ''  // Empty for points_redeemed
-      ];
-    }
-    return null;
-  }).filter(row => row !== null); // Remove empty rows
-  
-  // Combine header and data rows
-  return [headerRow, ...dataRows];
-};
-
-export const downloadFile = (blob: Blob, fileName: string): void => {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
+export function downloadFile(data: Blob, fileName: string): void {
+  const url = window.URL.createObjectURL(data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}
