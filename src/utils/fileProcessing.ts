@@ -23,7 +23,7 @@ export async function processFile(file: File, mapping: ColumnMapping): Promise<{
           const worksheet = workbook.Sheets[firstSheet];
           
           // Convert to JSON
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
           
           // Process based on mapping
           const processedData = processData(jsonData, mapping);
