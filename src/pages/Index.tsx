@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import FileUpload from '@/components/FileUpload';
 import ColumnMapping from '@/components/ColumnMapping';
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { supabase } from '@/lib/supabase';
 
 enum AppStep {
   UPLOAD,
@@ -26,6 +28,26 @@ const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [columnMapping, setColumnMapping] = useState<Record<string, number> | null>(null);
   const [processedFile, setProcessedFile] = useState<ProcessedFile | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Check Supabase connection on load
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        const { data, error } = await supabase.from('_dummy_query').select('*').limit(1);
+        if (error) {
+          console.log('Supabase connection check:', error.message);
+          // This is expected since the table doesn't exist yet, but confirms Supabase is reachable
+        }
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error connecting to Supabase:', err);
+        setIsLoading(false);
+      }
+    };
+    
+    checkConnection();
+  }, []);
 
   const handleFileSelected = (file: File) => {
     setSelectedFile(file);
@@ -79,6 +101,17 @@ const Index = () => {
       setCurrentStep(AppStep.UPLOAD);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="h-6 w-40 bg-slate-200 rounded mb-4"></div>
+          <div className="h-4 w-60 bg-slate-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-secondary/30 flex flex-col items-center px-4">
