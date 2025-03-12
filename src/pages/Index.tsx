@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import FileUpload from '@/components/FileUpload';
@@ -42,14 +41,17 @@ const Index = () => {
         const result = await processFile(selectedFile, mapping as any);
         setProcessedFile(result);
         setCurrentStep(AppStep.COMPLETE);
-        toast.success('File processed successfully', {
-          description: 'Your file is ready for download'
+        toast({
+          title: "Success",
+          description: "File processed successfully. Your file is ready for download",
         });
       }
     } catch (error) {
       console.error('Error during file processing:', error);
-      toast.error('Error processing file', {
-        description: error instanceof Error ? error.message : 'An unknown error occurred'
+      toast({
+        variant: "destructive",
+        title: "Error processing file",
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
       });
       resetApp();
     }
@@ -58,7 +60,10 @@ const Index = () => {
   const handleDownload = () => {
     if (processedFile) {
       downloadFile(processedFile.data, processedFile.fileName);
-      toast.success('File download started');
+      toast({
+        title: "Success",
+        description: "File download started",
+      });
     }
   };
 
