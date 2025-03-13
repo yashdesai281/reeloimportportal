@@ -105,6 +105,7 @@ const Index = () => {
 
   const handleContactsConfirmation = (generate: boolean) => {
     if (generate) {
+      console.log("User confirmed contacts file generation");
       setCurrentStep(AppStep.CONTACTS_MAPPING);
     } else {
       setCurrentStep(AppStep.COMPLETE);
@@ -116,12 +117,14 @@ const Index = () => {
   };
 
   const handleContactsMappingComplete = async (mapping: ContactsColumnMapping) => {
+    console.log("Contacts mapping completed, setting processing step");
     setCurrentStep(AppStep.PROCESSING);
 
     try {
       if (rawFileData) {
         console.log("Generating contacts file with mapping:", mapping);
         const result = await generateContactsFile(rawFileData, mapping);
+        console.log("Contacts file generation result:", result);
         setContactsFile(result);
         setCurrentStep(AppStep.COMPLETE);
         toast({
@@ -190,6 +193,17 @@ const Index = () => {
       </div>
     );
   }
+
+  // Add additional debugging information
+  console.log("Current application state:", {
+    currentStep,
+    hasFile: !!selectedFile,
+    hasMapping: !!columnMapping,
+    hasRawData: !!rawFileData,
+    hasContactData,
+    hasTransactionFile: !!transactionFile,
+    hasContactsFile: !!contactsFile
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-secondary/30 flex flex-col items-center px-4">
@@ -291,13 +305,15 @@ const Index = () => {
                 </div>
               )}
 
-              {currentStep === AppStep.CONTACTS_MAPPING && (
+              {currentStep === AppStep.CONTACTS_MAPPING && rawFileData && (
                 <div className="animate-fade-in">
-                  <ContactsMapping
-                    onComplete={handleContactsMappingComplete}
-                    onCancel={() => setCurrentStep(AppStep.COMPLETE)}
-                    rawData={rawFileData || []}
-                  />
+                  <ErrorBoundary fallback={<ContactsMappingError onReset={resetApp} />}>
+                    <ContactsMapping
+                      onComplete={handleContactsMappingComplete}
+                      onCancel={() => setCurrentStep(AppStep.COMPLETE)}
+                      rawData={rawFileData}
+                    />
+                  </ErrorBoundary>
                 </div>
               )}
 
@@ -330,6 +346,41 @@ const Index = () => {
           Transaction File Import Portal — Process your transaction data with ease.
         </div>
       </footer>
+    </div>
+  );
+};
+
+// Add a simple error boundary component
+class ErrorBoundary extends React.Component<{
+  children: React.ReactNode;
+  fallback: React.ReactNode;
+}> {
+  state = { hasError: false, error: null };
+  
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Component error:", error, errorInfo);
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    
+    return this.props.children;
+  }
+}
+
+// Add a simple error fallback component
+const ContactsMappingError = ({ onReset }: { onReset: () => void }) => {
+  return (
+    <div className="p-8 bg-white rounded-lg shadow-md text-center">
+      <h3 className="text-xl font-semibold text-destructive mb-4">An error occurred in the contacts mapping</h3>
+      <p className="mb-6 text-muted-foreground">There was a problem with the contacts mapping component. This might be due to an issue with the data format.</p>
+      <Button onClick={onReset} variant="default">Start Over</Button>
     </div>
   );
 };
