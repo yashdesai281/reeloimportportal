@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import FileUpload from '@/components/FileUpload';
@@ -7,7 +6,12 @@ import ContactsMapping from '@/components/ContactsMapping';
 import ContactsConfirmation from '@/components/ContactsConfirmation';
 import ProcessingStatus from '@/components/ProcessingStatus';
 import ProcessingHistory from '@/components/ProcessingHistory';
-import { processFile, downloadFile, generateContactsFile } from '@/utils/fileProcessing';
+import { 
+  processFile, 
+  downloadFile, 
+  generateContactsFile, 
+  ContactsColumnMapping 
+} from '@/utils/fileProcessing';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Upload, History } from 'lucide-react';
@@ -39,7 +43,6 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [viewMode, setViewMode] = useState<'upload' | 'history'>('upload');
 
-  // Check Supabase connection on load
   useEffect(() => {
     const checkConnection = async () => {
       try {
@@ -107,12 +110,12 @@ const Index = () => {
     }
   };
 
-  const handleContactsMappingComplete = async (mapping: Record<string, number>) => {
+  const handleContactsMappingComplete = async (mapping: ContactsColumnMapping) => {
     setCurrentStep(AppStep.PROCESSING);
 
     try {
       if (rawFileData) {
-        const result = await generateContactsFile(rawFileData, mapping as any);
+        const result = await generateContactsFile(rawFileData, mapping);
         setContactsFile(result);
         setCurrentStep(AppStep.COMPLETE);
         toast({
@@ -127,7 +130,6 @@ const Index = () => {
         title: "Error generating contacts file",
         description: error instanceof Error ? error.message : 'An unknown error occurred',
       });
-      // Still show the transaction file
       setCurrentStep(AppStep.COMPLETE);
     }
   };
