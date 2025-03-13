@@ -3,9 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import FileUpload from '@/components/FileUpload';
 import ColumnMapping from '@/components/ColumnMapping';
+import ContactsMapping from '@/components/ContactsMapping';
+import ContactsConfirmation from '@/components/ContactsConfirmation';
 import ProcessingStatus from '@/components/ProcessingStatus';
 import ProcessingHistory from '@/components/ProcessingHistory';
-import { processFile, downloadFile } from '@/utils/fileProcessing';
+import { processFile, downloadFile, generateContactsFile } from '@/utils/fileProcessing';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Upload, History } from 'lucide-react';
@@ -15,6 +17,8 @@ import { supabase } from '@/lib/supabase';
 enum AppStep {
   UPLOAD,
   COLUMN_MAPPING,
+  CONTACTS_CONFIRMATION,
+  CONTACTS_MAPPING,
   PROCESSING,
   COMPLETE
 }
@@ -28,7 +32,10 @@ const Index = () => {
   const [currentStep, setCurrentStep] = useState<AppStep>(AppStep.UPLOAD);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [columnMapping, setColumnMapping] = useState<Record<string, number> | null>(null);
-  const [processedFile, setProcessedFile] = useState<ProcessedFile | null>(null);
+  const [rawFileData, setRawFileData] = useState<any[][] | null>(null);
+  const [hasContactData, setHasContactData] = useState<boolean>(false);
+  const [transactionFile, setTransactionFile] = useState<ProcessedFile | null>(null);
+  const [contactsFile, setContactsFile] = useState<ProcessedFile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [viewMode, setViewMode] = useState<'upload' | 'history'>('upload');
 
@@ -60,12 +67,22 @@ const Index = () => {
     try {
       if (selectedFile) {
         const result = await processFile(selectedFile, mapping as any);
-        setProcessedFile(result);
-        setCurrentStep(AppStep.COMPLETE);
-        toast({
-          title: "Success",
-          description: "File processed successfully. Your file is ready for download",
+        setTransactionFile({
+          data: result.transactionData,
+          fileName: result.transactionFileName
         });
+        setRawFileData(result.rawData);
+        setHasContactData(result.hasContactData);
+        
+        if (result.hasContactData) {
+          setCurrentStep(AppStep.CONTACTS_CONFIRMATION);
+        } else {
+          setCurrentStep(AppStep.COMPLETE);
+          toast({
+            title: "Success",
+            description: "Transaction file processed successfully.",
+          });
+        }
       }
     } catch (error) {
       console.error('Error during file processing:', error);
@@ -78,12 +95,59 @@ const Index = () => {
     }
   };
 
-  const handleDownload = () => {
-    if (processedFile) {
-      downloadFile(processedFile.data, processedFile.fileName);
+  const handleContactsConfirmation = (generate: boolean) => {
+    if (generate) {
+      setCurrentStep(AppStep.CONTACTS_MAPPING);
+    } else {
+      setCurrentStep(AppStep.COMPLETE);
       toast({
         title: "Success",
-        description: "File download started",
+        description: "Transaction file processed successfully.",
+      });
+    }
+  };
+
+  const handleContactsMappingComplete = async (mapping: Record<string, number>) => {
+    setCurrentStep(AppStep.PROCESSING);
+
+    try {
+      if (rawFileData) {
+        const result = await generateContactsFile(rawFileData, mapping as any);
+        setContactsFile(result);
+        setCurrentStep(AppStep.COMPLETE);
+        toast({
+          title: "Success",
+          description: "Both files processed successfully.",
+        });
+      }
+    } catch (error) {
+      console.error('Error generating contacts file:', error);
+      toast({
+        variant: "destructive",
+        title: "Error generating contacts file",
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
+      });
+      // Still show the transaction file
+      setCurrentStep(AppStep.COMPLETE);
+    }
+  };
+
+  const handleDownloadTransaction = () => {
+    if (transactionFile) {
+      downloadFile(transactionFile.data, transactionFile.fileName);
+      toast({
+        title: "Success",
+        description: "Transaction file download started",
+      });
+    }
+  };
+
+  const handleDownloadContacts = () => {
+    if (contactsFile) {
+      downloadFile(contactsFile.data, contactsFile.fileName);
+      toast({
+        title: "Success",
+        description: "Contacts file download started",
       });
     }
   };
@@ -92,12 +156,19 @@ const Index = () => {
     setCurrentStep(AppStep.UPLOAD);
     setSelectedFile(null);
     setColumnMapping(null);
-    setProcessedFile(null);
+    setRawFileData(null);
+    setHasContactData(false);
+    setTransactionFile(null);
+    setContactsFile(null);
   };
 
   const handleBack = () => {
     if (currentStep === AppStep.COLUMN_MAPPING) {
       setCurrentStep(AppStep.UPLOAD);
+    } else if (currentStep === AppStep.CONTACTS_CONFIRMATION) {
+      setCurrentStep(AppStep.COLUMN_MAPPING);
+    } else if (currentStep === AppStep.CONTACTS_MAPPING) {
+      setCurrentStep(AppStep.CONTACTS_CONFIRMATION);
     }
   };
 
@@ -154,7 +225,9 @@ const Index = () => {
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-lg font-medium">
                   {currentStep === AppStep.UPLOAD && 'Upload File'}
-                  {currentStep === AppStep.COLUMN_MAPPING && 'Map Columns'}
+                  {currentStep === AppStep.COLUMN_MAPPING && 'Map Transaction Columns'}
+                  {currentStep === AppStep.CONTACTS_CONFIRMATION && 'Confirm Contacts File'}
+                  {currentStep === AppStep.CONTACTS_MAPPING && 'Map Contacts Columns'}
                   {currentStep === AppStep.PROCESSING && 'Processing'}
                   {currentStep === AppStep.COMPLETE && 'Complete'}
                 </h2>
@@ -201,13 +274,34 @@ const Index = () => {
                 </div>
               )}
 
+              {currentStep === AppStep.CONTACTS_CONFIRMATION && (
+                <div className="animate-fade-in">
+                  <ContactsConfirmation
+                    onConfirm={() => handleContactsConfirmation(true)}
+                    onCancel={() => handleContactsConfirmation(false)}
+                  />
+                </div>
+              )}
+
+              {currentStep === AppStep.CONTACTS_MAPPING && (
+                <div className="animate-fade-in">
+                  <ContactsMapping
+                    onComplete={handleContactsMappingComplete}
+                    onCancel={() => setCurrentStep(AppStep.COMPLETE)}
+                    rawData={rawFileData || []}
+                  />
+                </div>
+              )}
+
               {(currentStep === AppStep.PROCESSING || currentStep === AppStep.COMPLETE) && (
                 <div className="animate-fade-in">
                   <ProcessingStatus
                     isProcessing={currentStep === AppStep.PROCESSING}
                     isComplete={currentStep === AppStep.COMPLETE}
-                    fileName={processedFile?.fileName || null}
-                    onDownload={handleDownload}
+                    transactionFileName={transactionFile?.fileName || null}
+                    contactsFileName={contactsFile?.fileName || null}
+                    onDownloadTransaction={handleDownloadTransaction}
+                    onDownloadContacts={handleDownloadContacts}
                     onReset={resetApp}
                   />
                 </div>

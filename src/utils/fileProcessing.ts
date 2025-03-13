@@ -9,7 +9,23 @@ export interface ColumnMapping {
   order_time: number;
 }
 
-export async function processFile(file: File, mapping: ColumnMapping): Promise<{ data: Blob; fileName: string }> {
+export interface ContactsColumnMapping {
+  mobile: number;
+  name?: number;
+  email?: number;
+  birthday?: number;
+  anniversary?: number;
+  gender?: number;
+  points?: number;
+  tags?: number;
+}
+
+export async function processFile(file: File, mapping: ColumnMapping): Promise<{ 
+  transactionData: Blob; 
+  transactionFileName: string;
+  rawData: any[][];
+  hasContactData: boolean;
+}> {
   return new Promise(async (resolve, reject) => {
     try {
       // Read the file
@@ -25,8 +41,8 @@ export async function processFile(file: File, mapping: ColumnMapping): Promise<{
           // Convert to JSON
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
           
-          // Process based on mapping
-          const processedData = processData(jsonData, mapping);
+          // Process based on mapping for transaction file
+          const processedData = processTransactionData(jsonData, mapping);
           
           // Convert back to workbook
           const processedWorkbook = XLSX.utils.book_new();
@@ -42,7 +58,7 @@ export async function processFile(file: File, mapping: ColumnMapping): Promise<{
           
           // Generate filename
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const fileName = `processed_${timestamp}.xlsx`;
+          const fileName = `transaction_${timestamp}.xlsx`;
           
           // Store metadata in Supabase
           const { error } = await supabase
@@ -57,7 +73,15 @@ export async function processFile(file: File, mapping: ColumnMapping): Promise<{
             console.error('Error storing file metadata:', error);
           }
           
-          resolve({ data: processedBlob, fileName });
+          // Check if we have potential contacts data
+          const hasContactData = detectContactsData(jsonData);
+          
+          resolve({ 
+            transactionData: processedBlob, 
+            transactionFileName: fileName,
+            rawData: jsonData,
+            hasContactData
+          });
         } catch (error) {
           console.error('Processing error:', error);
           reject(error);
@@ -75,20 +99,201 @@ export async function processFile(file: File, mapping: ColumnMapping): Promise<{
   });
 }
 
-function processData(data: any[][], mapping: ColumnMapping): any[][] {
+function processTransactionData(data: any[][], mapping: ColumnMapping): any[][] {
   // Create header row for new file
   const header = ['Mobile Number', 'Bill Number', 'Bill Amount', 'Order Time'];
   
   // Process each row according to the mapping
   const processedRows = data.slice(1).map(row => [
-    row[mapping.mobile - 1],       // Mobile Number
-    row[mapping.bill_number - 1],  // Bill Number
-    row[mapping.bill_amount - 1],  // Bill Amount
-    row[mapping.order_time - 1],   // Order Time
+    cleanMobileNumber(row[mapping.mobile - 1]),  // Mobile Number
+    row[mapping.bill_number - 1],                // Bill Number
+    cleanNumericValue(row[mapping.bill_amount - 1]), // Bill Amount
+    formatDate(row[mapping.order_time - 1]),     // Order Time
   ]);
   
   // Return processed data with header
   return [header, ...processedRows];
+}
+
+export async function generateContactsFile(rawData: any[][], mapping: ContactsColumnMapping): Promise<{ data: Blob; fileName: string }> {
+  return new Promise((resolve, reject) => {
+    try {
+      // Process the contacts data
+      const processedData = processContactsData(rawData, mapping);
+      
+      // Convert to workbook
+      const contactsWorkbook = XLSX.utils.book_new();
+      const contactsWorksheet = XLSX.utils.aoa_to_sheet(processedData);
+      XLSX.utils.book_append_sheet(contactsWorkbook, contactsWorksheet, 'Contacts');
+      
+      // Generate file
+      const contactsExcel = XLSX.write(contactsWorkbook, { bookType: 'xlsx', type: 'binary' });
+      const contactsBlob = new Blob(
+        [s2ab(contactsExcel)], 
+        { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+      );
+      
+      // Generate filename
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const fileName = `contacts_${timestamp}.xlsx`;
+      
+      resolve({ data: contactsBlob, fileName });
+    } catch (error) {
+      console.error('Error generating contacts file:', error);
+      reject(error);
+    }
+  });
+}
+
+function processContactsData(data: any[][], mapping: ContactsColumnMapping): any[][] {
+  // Create header row for contacts file
+  const header = ['Phone Number', 'Name', 'Email', 'Birthday', 'Anniversary', 'Gender', 'Points', 'Tags'];
+  
+  // Process each row according to the mapping
+  const processedRows = data.slice(1).map(row => {
+    return [
+      cleanMobileNumber(row[mapping.mobile - 1]),              // Phone Number
+      mapping.name ? cleanTextValue(row[mapping.name - 1]) : '',              // Name
+      mapping.email ? cleanEmailValue(row[mapping.email - 1]) : '',           // Email
+      mapping.birthday ? formatDate(row[mapping.birthday - 1]) : '',          // Birthday
+      mapping.anniversary ? formatDate(row[mapping.anniversary - 1]) : '',    // Anniversary
+      mapping.gender ? cleanTextValue(row[mapping.gender - 1]) : '',          // Gender
+      mapping.points ? cleanNumericValue(row[mapping.points - 1]) : '',       // Points
+      mapping.tags ? cleanTextValue(row[mapping.tags - 1]) : '',              // Tags
+    ];
+  });
+
+  // Remove duplicate contacts based on phone number
+  const uniqueContacts = removeDuplicateContacts(processedRows);
+  
+  // Return processed data with header
+  return [header, ...uniqueContacts];
+}
+
+// Data cleaning functions
+
+function cleanMobileNumber(value: any): string {
+  if (!value) return '';
+  
+  // Convert to string if it's not already
+  const strValue = String(value);
+  
+  // Remove non-numeric characters
+  let cleanValue = strValue.replace(/\D/g, '');
+  
+  // Remove prefixes like +91 or 91
+  if (cleanValue.startsWith('91') && cleanValue.length > 10) {
+    cleanValue = cleanValue.substring(2);
+  }
+  
+  return cleanValue;
+}
+
+function cleanTextValue(value: any): string {
+  if (!value) return '';
+  
+  // Convert to string if it's not already
+  const strValue = String(value);
+  
+  // Remove special characters and extra spaces
+  return strValue.replace(/[^\w\s]/gi, '').replace(/\s+/g, ' ').trim();
+}
+
+function cleanEmailValue(value: any): string {
+  if (!value) return '';
+  
+  // Convert to string if it's not already
+  const strValue = String(value);
+  
+  // Basic email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(strValue) ? strValue.trim().toLowerCase() : '';
+}
+
+function cleanNumericValue(value: any): number | string {
+  if (value === undefined || value === null || value === '') return '';
+  
+  // If it's already a number, return it
+  if (typeof value === 'number') return value;
+  
+  // Convert string to number
+  const strValue = String(value);
+  const numericValue = parseFloat(strValue.replace(/[^\d.-]/g, ''));
+  
+  return isNaN(numericValue) ? '' : numericValue;
+}
+
+function formatDate(value: any): string {
+  if (!value) return '';
+  
+  let dateValue;
+  
+  // If it's already a Date object
+  if (value instanceof Date) {
+    dateValue = value;
+  } else {
+    // Try to parse various date formats
+    const strValue = String(value).trim();
+    
+    // Check if it's an Excel date (numeric)
+    if (/^[0-9]+(\.[0-9]+)?$/.test(strValue)) {
+      try {
+        dateValue = XLSX.SSF.parse_date_code(parseFloat(strValue));
+        const year = dateValue.y;
+        const month = dateValue.m.toString().padStart(2, '0');
+        const day = dateValue.d.toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      } catch (e) {
+        // Not an Excel date, continue with other parsing methods
+      }
+    }
+    
+    // Try to parse as Date
+    dateValue = new Date(strValue);
+    if (isNaN(dateValue.getTime())) {
+      // Not a valid date
+      return '';
+    }
+  }
+  
+  // Format as YYYY-MM-DD
+  const year = dateValue.getFullYear();
+  const month = (dateValue.getMonth() + 1).toString().padStart(2, '0');
+  const day = dateValue.getDate().toString().padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+}
+
+function removeDuplicateContacts(rows: any[][]): any[][] {
+  const seen = new Set();
+  return rows.filter(row => {
+    const phoneNumber = row[0]; // Phone number is the first column
+    if (!phoneNumber || seen.has(phoneNumber)) {
+      return false;
+    }
+    seen.add(phoneNumber);
+    return true;
+  });
+}
+
+function detectContactsData(data: any[][]): boolean {
+  // Basic heuristic to detect if this data might contain contacts
+  // Check if header row contains common contact fields
+  if (data.length < 2) return false;
+  
+  const headerRow = data[0].map(cell => String(cell || '').toLowerCase());
+  const contactFields = [
+    'mobile', 'phone', 'contact', 'cell', 'name', 'email', 
+    'birthday', 'birth', 'dob', 'anniversary', 'gender', 'points', 'tag', 'tags'
+  ];
+  
+  // Count how many contact-related fields we can find
+  const contactFieldCount = contactFields.reduce((count, field) => {
+    return count + (headerRow.some(header => header.includes(field)) ? 1 : 0);
+  }, 0);
+  
+  // If we find at least 2 contact-related fields, assume it might be contact data
+  return contactFieldCount >= 2;
 }
 
 // Convert string to ArrayBuffer
