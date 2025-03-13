@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -12,11 +11,11 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { ChevronRight, ChevronLeft, ArrowRight, CheckIcon } from 'lucide-react';
-import { indexToColumnLabel, columnLabelToIndex } from '@/utils/fileProcessing';
+import { ColumnMapping as ColumnMappingType, indexToColumnLabel, columnLabelToIndex } from '@/utils/fileProcessing';
 
 interface ColumnMappingProps {
   step: number;
-  onComplete: (columnMapping: Record<string, string>) => void;
+  onComplete: (columnMapping: ColumnMappingType) => void;
   onBack: () => void;
 }
 
@@ -31,7 +30,7 @@ const mappingSteps = [
 
 const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [columnMappings, setColumnMappings] = useState<Record<string, string>>({});
+  const [columnMappings, setColumnMappings] = useState<Partial<ColumnMappingType>>({});
   const [inputValue, setInputValue] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const currentStep = mappingSteps[currentStepIndex];
@@ -76,7 +75,16 @@ const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack 
       setCurrentStepIndex(prev => prev + 1);
     } else {
       // Final step - complete the process
-      onComplete(updatedMappings);
+      // We need to ensure all required properties are present before completing
+      const completeMapping: ColumnMappingType = {
+        mobile: updatedMappings.mobile || '',
+        bill_number: updatedMappings.bill_number || '',
+        bill_amount: updatedMappings.bill_amount || '',
+        order_time: updatedMappings.order_time || '',
+        points_earned: updatedMappings.points_earned || '',
+        points_redeemed: updatedMappings.points_redeemed || ''
+      };
+      onComplete(completeMapping);
     }
   };
 

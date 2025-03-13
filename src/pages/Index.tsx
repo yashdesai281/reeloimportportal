@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import FileUpload from '@/components/FileUpload';
@@ -10,6 +11,7 @@ import {
   processFile, 
   downloadFile, 
   generateContactsFile, 
+  ColumnMapping as ColumnMappingType,
   ContactsColumnMapping 
 } from '@/utils/fileProcessing';
 import { Button } from '@/components/ui/button';
@@ -35,7 +37,7 @@ interface ProcessedFile {
 const Index = () => {
   const [currentStep, setCurrentStep] = useState<AppStep>(AppStep.UPLOAD);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [columnMapping, setColumnMapping] = useState<Record<string, string> | null>(null);
+  const [columnMapping, setColumnMapping] = useState<ColumnMappingType | null>(null);
   const [rawFileData, setRawFileData] = useState<any[][] | null>(null);
   const [hasContactData, setHasContactData] = useState<boolean>(false);
   const [transactionFile, setTransactionFile] = useState<ProcessedFile | null>(null);
@@ -63,7 +65,7 @@ const Index = () => {
     setCurrentStep(AppStep.COLUMN_MAPPING);
   };
 
-  const handleColumnMappingComplete = async (mapping: Record<string, string>) => {
+  const handleColumnMappingComplete = async (mapping: ColumnMappingType) => {
     setColumnMapping(mapping);
     setCurrentStep(AppStep.PROCESSING);
 
