@@ -71,7 +71,10 @@ const Index = () => {
 
     try {
       if (selectedFile) {
+        console.log("Processing file with mapping:", mapping);
         const result = await processFile(selectedFile, mapping);
+        console.log("Process file result:", result);
+        
         setTransactionFile({
           data: result.transactionData,
           fileName: result.transactionFileName
@@ -117,6 +120,7 @@ const Index = () => {
 
     try {
       if (rawFileData) {
+        console.log("Generating contacts file with mapping:", mapping);
         const result = await generateContactsFile(rawFileData, mapping);
         setContactsFile(result);
         setCurrentStep(AppStep.COMPLETE);

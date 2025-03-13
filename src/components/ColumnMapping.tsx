@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -20,12 +21,12 @@ interface ColumnMappingProps {
 }
 
 const mappingSteps = [
-  { id: 'mobile', label: 'Mobile Number', description: 'Enter the column letter containing mobile numbers' },
-  { id: 'bill_number', label: 'Bill Number', description: 'Enter the column letter containing bill numbers' },
-  { id: 'bill_amount', label: 'Bill Amount', description: 'Enter the column letter containing bill amounts' },
-  { id: 'order_time', label: 'Order Time', description: 'Enter the column letter containing order timestamps' },
-  { id: 'points_earned', label: 'Points Earned', description: 'Enter the column letter containing points earned (if any)' },
-  { id: 'points_redeemed', label: 'Points Redeemed', description: 'Enter the column letter containing points redeemed (if any)' },
+  { id: 'mobile', label: 'Mobile Number', description: 'Enter the column letter containing mobile numbers', required: true },
+  { id: 'bill_number', label: 'Bill Number', description: 'Enter the column letter containing bill numbers', required: true },
+  { id: 'bill_amount', label: 'Bill Amount', description: 'Enter the column letter containing bill amounts', required: true },
+  { id: 'order_time', label: 'Order Time', description: 'Enter the column letter containing order timestamps', required: true },
+  { id: 'points_earned', label: 'Points Earned', description: 'Enter the column letter containing points earned (optional)', required: false },
+  { id: 'points_redeemed', label: 'Points Redeemed', description: 'Enter the column letter containing points redeemed (optional)', required: false },
 ];
 
 const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack }) => {
@@ -35,10 +36,15 @@ const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack 
   const [error, setError] = useState<string | null>(null);
   const currentStep = mappingSteps[currentStepIndex];
 
-  const validateInput = (value: string): boolean => {
+  const validateInput = (value: string, isRequired: boolean): boolean => {
     if (!value.trim()) {
-      setError('Please enter a column letter');
-      return false;
+      if (isRequired) {
+        setError('Please enter a column letter');
+        return false;
+      } else {
+        // For optional fields, empty value is acceptable
+        return true;
+      }
     }
 
     // Check if it's a valid column label (A-Z, AA-ZZ, etc.)
@@ -49,8 +55,9 @@ const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack 
     }
 
     // Check for duplicate mappings
+    const upperValue = value.toUpperCase();
     const existingMappings = Object.values(columnMappings);
-    if (existingMappings.includes(value.toUpperCase())) {
+    if (existingMappings.includes(upperValue)) {
       setError('This column is already mapped to another field');
       return false;
     }
@@ -60,7 +67,25 @@ const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack 
   };
 
   const handleNext = () => {
-    if (!validateInput(inputValue)) return;
+    // For optional fields, allow empty input to skip
+    if (!currentStep.required && !inputValue.trim()) {
+      const updatedMappings = {
+        ...columnMappings,
+        [currentStep.id]: ''
+      };
+      
+      setColumnMappings(updatedMappings);
+      
+      if (currentStepIndex < mappingSteps.length - 1) {
+        setCurrentStepIndex(prev => prev + 1);
+        setInputValue('');
+      } else {
+        completeMapping(updatedMappings);
+      }
+      return;
+    }
+    
+    if (!validateInput(inputValue, currentStep.required)) return;
 
     const columnLabel = inputValue.toUpperCase();
     const updatedMappings = {
@@ -74,18 +99,21 @@ const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack 
     if (currentStepIndex < mappingSteps.length - 1) {
       setCurrentStepIndex(prev => prev + 1);
     } else {
-      // Final step - complete the process
-      // We need to ensure all required properties are present before completing
-      const completeMapping: ColumnMappingType = {
-        mobile: updatedMappings.mobile || '',
-        bill_number: updatedMappings.bill_number || '',
-        bill_amount: updatedMappings.bill_amount || '',
-        order_time: updatedMappings.order_time || '',
-        points_earned: updatedMappings.points_earned || '',
-        points_redeemed: updatedMappings.points_redeemed || ''
-      };
-      onComplete(completeMapping);
+      completeMapping(updatedMappings);
     }
+  };
+  
+  const completeMapping = (mappings: Partial<ColumnMappingType>) => {
+    // Ensure all required properties are present before completing
+    const completeMapping: ColumnMappingType = {
+      mobile: mappings.mobile || '',
+      bill_number: mappings.bill_number || '',
+      bill_amount: mappings.bill_amount || '',
+      order_time: mappings.order_time || '',
+      points_earned: mappings.points_earned || '',
+      points_redeemed: mappings.points_redeemed || ''
+    };
+    onComplete(completeMapping);
   };
 
   const handleBack = () => {
@@ -93,7 +121,7 @@ const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack 
       setCurrentStepIndex(prev => prev - 1);
       // Restore previous input value
       const prevStepId = mappingSteps[currentStepIndex - 1].id;
-      const prevValue = columnMappings[prevStepId];
+      const prevValue = columnMappings[prevStepId as keyof ColumnMappingType];
       setInputValue(prevValue || '');
     } else {
       onBack();
@@ -103,6 +131,24 @@ const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleNext();
+    }
+  };
+
+  const handleSkip = () => {
+    if (!currentStep.required) {
+      const updatedMappings = {
+        ...columnMappings,
+        [currentStep.id]: ''
+      };
+      
+      setColumnMappings(updatedMappings);
+      
+      if (currentStepIndex < mappingSteps.length - 1) {
+        setCurrentStepIndex(prev => prev + 1);
+        setInputValue('');
+      } else {
+        completeMapping(updatedMappings);
+      }
     }
   };
 
@@ -150,16 +196,19 @@ const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack 
 
       <div className="bg-white glass rounded-xl p-8 transition-all duration-300 animate-scale-in">
         <h2 className="text-2xl font-semibold mb-2">{currentStep.label}</h2>
-        <p className="text-muted-foreground mb-6">{currentStep.description}</p>
+        <p className="text-muted-foreground mb-6">
+          {currentStep.description}
+          {currentStep.required && <span className="text-destructive ml-1">*</span>}
+        </p>
         
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="columnLetter">Column Letter</Label>
+            <Label htmlFor="columnLetter">Column Letter {currentStep.required && <span className="text-destructive">*</span>}</Label>
             <div className="flex items-center space-x-2">
               <Input
                 id="columnLetter"
                 type="text"
-                placeholder="Enter column letter (A, B, C, etc.)"
+                placeholder={currentStep.required ? "Enter column letter (A, B, C, etc.)" : "Enter column letter or leave empty to skip"}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -185,22 +234,33 @@ const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack 
               Back
             </Button>
             
-            <Button 
-              onClick={handleNext}
-              className="group"
-            >
-              {currentStepIndex < mappingSteps.length - 1 ? (
-                <>
-                  Next
-                  <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </>
-              ) : (
-                <>
-                  Complete
-                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </>
+            <div className="space-x-2">
+              {!currentStep.required && (
+                <Button
+                  variant="secondary"
+                  onClick={handleSkip}
+                >
+                  Skip
+                </Button>
               )}
-            </Button>
+              
+              <Button 
+                onClick={handleNext}
+                className="group"
+              >
+                {currentStepIndex < mappingSteps.length - 1 ? (
+                  <>
+                    Next
+                    <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </>
+                ) : (
+                  <>
+                    Complete
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

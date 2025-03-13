@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
 
@@ -8,8 +7,8 @@ export interface ColumnMapping {
   bill_number: string;
   bill_amount: string;
   order_time: string;
-  points_earned: string;
-  points_redeemed: string;
+  points_earned: string; // Should be optional but TS interface keeps it required for type safety
+  points_redeemed: string; // Should be optional but TS interface keeps it required for type safety
 }
 
 export interface ContactsColumnMapping {
@@ -93,17 +92,22 @@ export async function processFile(file: File, mapping: ColumnMapping): Promise<{
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
           const fileName = `transaction_${timestamp}.xlsx`;
           
-          // Store metadata in Supabase
-          const { error } = await supabase
-            .from('processed_files')
-            .insert({
-              file_name: fileName,
-              original_file_name: file.name,
-              column_mapping: mapping,
-            });
-          
-          if (error) {
-            console.error('Error storing file metadata:', error);
+          try {
+            // Store metadata in Supabase
+            const { error } = await supabase
+              .from('processed_files')
+              .insert({
+                file_name: fileName,
+                original_file_name: file.name,
+                column_mapping: mapping,
+              });
+            
+            if (error) {
+              console.error('Error storing file metadata:', error);
+            }
+          } catch (supabaseError) {
+            console.error('Supabase error:', supabaseError);
+            // Continue with the process even if Supabase fails
           }
           
           // Check if we have potential contacts data
@@ -143,14 +147,14 @@ function processTransactionData(data: any[][], mapping: ColumnMapping): any[][] 
     const billNumberIndex = columnLabelToIndex(mapping.bill_number);
     const billAmountIndex = columnLabelToIndex(mapping.bill_amount);
     const orderTimeIndex = columnLabelToIndex(mapping.order_time);
-    const pointsEarnedIndex = columnLabelToIndex(mapping.points_earned);
-    const pointsRedeemedIndex = columnLabelToIndex(mapping.points_redeemed);
+    const pointsEarnedIndex = mapping.points_earned ? columnLabelToIndex(mapping.points_earned) : -1;
+    const pointsRedeemedIndex = mapping.points_redeemed ? columnLabelToIndex(mapping.points_redeemed) : -1;
     
     // Check if the row has any data (to auto-fill txn_type)
     const hasData = row.some(cell => cell !== null && cell !== undefined && cell !== '');
     
     return [
-      cleanMobileNumber(mobileIndex >= 0 ? row[mobileIndex] : ''),         // mobile
+      cleanMobileNumber(mobileIndex >= 0 ? row[mobileIndex] : ''),          // mobile
       hasData ? 'purchase' : '',                                           // txn_type (auto-filled)
       billNumberIndex >= 0 ? row[billNumberIndex] : '',                     // bill_number
       cleanNumericValue(billAmountIndex >= 0 ? row[billAmountIndex] : ''),  // bill_amount
