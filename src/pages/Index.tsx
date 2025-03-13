@@ -35,7 +35,7 @@ interface ProcessedFile {
 const Index = () => {
   const [currentStep, setCurrentStep] = useState<AppStep>(AppStep.UPLOAD);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [columnMapping, setColumnMapping] = useState<Record<string, number> | null>(null);
+  const [columnMapping, setColumnMapping] = useState<Record<string, string> | null>(null);
   const [rawFileData, setRawFileData] = useState<any[][] | null>(null);
   const [hasContactData, setHasContactData] = useState<boolean>(false);
   const [transactionFile, setTransactionFile] = useState<ProcessedFile | null>(null);
@@ -63,13 +63,13 @@ const Index = () => {
     setCurrentStep(AppStep.COLUMN_MAPPING);
   };
 
-  const handleColumnMappingComplete = async (mapping: Record<string, number>) => {
+  const handleColumnMappingComplete = async (mapping: Record<string, string>) => {
     setColumnMapping(mapping);
     setCurrentStep(AppStep.PROCESSING);
 
     try {
       if (selectedFile) {
-        const result = await processFile(selectedFile, mapping as any);
+        const result = await processFile(selectedFile, mapping);
         setTransactionFile({
           data: result.transactionData,
           fileName: result.transactionFileName

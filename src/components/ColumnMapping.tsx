@@ -4,44 +4,55 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
 import { ChevronRight, ChevronLeft, ArrowRight, CheckIcon } from 'lucide-react';
+import { indexToColumnLabel, columnLabelToIndex } from '@/utils/fileProcessing';
 
 interface ColumnMappingProps {
   step: number;
-  onComplete: (columnMapping: Record<string, number>) => void;
+  onComplete: (columnMapping: Record<string, string>) => void;
   onBack: () => void;
 }
 
 const mappingSteps = [
-  { id: 'mobile', label: 'Mobile Number', description: 'Enter the column number containing mobile numbers' },
-  { id: 'bill_number', label: 'Bill Number', description: 'Enter the column number containing bill numbers' },
-  { id: 'bill_amount', label: 'Bill Amount', description: 'Enter the column number containing bill amounts' },
-  { id: 'order_time', label: 'Order Time', description: 'Enter the column number containing order timestamps' },
+  { id: 'mobile', label: 'Mobile Number', description: 'Enter the column letter containing mobile numbers' },
+  { id: 'bill_number', label: 'Bill Number', description: 'Enter the column letter containing bill numbers' },
+  { id: 'bill_amount', label: 'Bill Amount', description: 'Enter the column letter containing bill amounts' },
+  { id: 'order_time', label: 'Order Time', description: 'Enter the column letter containing order timestamps' },
+  { id: 'points_earned', label: 'Points Earned', description: 'Enter the column letter containing points earned (if any)' },
+  { id: 'points_redeemed', label: 'Points Redeemed', description: 'Enter the column letter containing points redeemed (if any)' },
 ];
 
 const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [columnMappings, setColumnMappings] = useState<Record<string, number>>({});
+  const [columnMappings, setColumnMappings] = useState<Record<string, string>>({});
   const [inputValue, setInputValue] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const currentStep = mappingSteps[currentStepIndex];
 
   const validateInput = (value: string): boolean => {
     if (!value.trim()) {
-      setError('Please enter a column number');
+      setError('Please enter a column letter');
       return false;
     }
 
-    const columnNumber = parseInt(value);
-    if (isNaN(columnNumber) || columnNumber <= 0) {
-      setError('Please enter a valid positive number');
+    // Check if it's a valid column label (A-Z, AA-ZZ, etc.)
+    const columnLetterRegex = /^[A-Za-z]+$/;
+    if (!columnLetterRegex.test(value)) {
+      setError('Please enter a valid column letter (A-Z, AA, AB, etc.)');
       return false;
     }
 
     // Check for duplicate mappings
     const existingMappings = Object.values(columnMappings);
-    if (existingMappings.includes(columnNumber)) {
-      setError('This column number is already mapped to another field');
+    if (existingMappings.includes(value.toUpperCase())) {
+      setError('This column is already mapped to another field');
       return false;
     }
 
@@ -52,10 +63,10 @@ const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack 
   const handleNext = () => {
     if (!validateInput(inputValue)) return;
 
-    const columnNumber = parseInt(inputValue);
+    const columnLabel = inputValue.toUpperCase();
     const updatedMappings = {
       ...columnMappings,
-      [currentStep.id]: columnNumber
+      [currentStep.id]: columnLabel
     };
 
     setColumnMappings(updatedMappings);
@@ -75,7 +86,7 @@ const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack 
       // Restore previous input value
       const prevStepId = mappingSteps[currentStepIndex - 1].id;
       const prevValue = columnMappings[prevStepId];
-      setInputValue(prevValue ? prevValue.toString() : '');
+      setInputValue(prevValue || '');
     } else {
       onBack();
     }
@@ -135,18 +146,22 @@ const ColumnMapping: React.FC<ColumnMappingProps> = ({ step, onComplete, onBack 
         
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="columnNumber">Column Number</Label>
-            <Input
-              id="columnNumber"
-              type="number"
-              min="1"
-              placeholder="Enter column number"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="text-lg h-12"
-              autoFocus
-            />
+            <Label htmlFor="columnLetter">Column Letter</Label>
+            <div className="flex items-center space-x-2">
+              <Input
+                id="columnLetter"
+                type="text"
+                placeholder="Enter column letter (A, B, C, etc.)"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="text-lg h-12 uppercase"
+                autoFocus
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Columns are labeled A, B, C, ..., Z, followed by AA, AB, AC, etc.
+            </p>
             {error && (
               <p className="text-destructive text-sm animate-slide-up">{error}</p>
             )}

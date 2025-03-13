@@ -3,21 +3,54 @@ import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
 
 export interface ColumnMapping {
-  mobile: number;
-  bill_number: number;
-  bill_amount: number;
-  order_time: number;
+  mobile: string;
+  txn_type?: string; // Not needed in UI selection, will be auto-filled
+  bill_number: string;
+  bill_amount: string;
+  order_time: string;
+  points_earned: string;
+  points_redeemed: string;
 }
 
 export interface ContactsColumnMapping {
-  mobile: number;
-  name?: number;
-  email?: number;
-  birthday?: number;
-  anniversary?: number;
-  gender?: number;
-  points?: number;
-  tags?: number;
+  mobile: string;
+  name: string;
+  email: string;
+  birthday: string;
+  anniversary: string;
+  gender: string;
+  points: string;
+  tags: string;
+}
+
+// Convert column label (A, B, C, ..., Z, AA, AB, ...) to index (0, 1, 2, ...)
+export function columnLabelToIndex(label: string): number {
+  if (!label) return -1;
+  
+  const upperLabel = label.toUpperCase();
+  let index = 0;
+  
+  for (let i = 0; i < upperLabel.length; i++) {
+    index = index * 26 + (upperLabel.charCodeAt(i) - 64);
+  }
+  
+  return index - 1; // Convert to 0-based index
+}
+
+// Convert index (0, 1, 2, ...) to column label (A, B, C, ..., Z, AA, AB, ...)
+export function indexToColumnLabel(index: number): string {
+  if (index < 0) return '';
+  
+  let label = '';
+  index++; // Convert to 1-based index
+  
+  while (index > 0) {
+    const remainder = (index - 1) % 26;
+    label = String.fromCharCode(65 + remainder) + label;
+    index = Math.floor((index - 1) / 26);
+  }
+  
+  return label;
 }
 
 export async function processFile(file: File, mapping: ColumnMapping): Promise<{ 
@@ -100,16 +133,32 @@ export async function processFile(file: File, mapping: ColumnMapping): Promise<{
 }
 
 function processTransactionData(data: any[][], mapping: ColumnMapping): any[][] {
-  // Create header row for new file
-  const header = ['Mobile Number', 'Bill Number', 'Bill Amount', 'Order Time'];
+  // Create header row with the required order and names
+  const header = ['mobile', 'txn_type', 'bill_number', 'bill_amount', 'order_time', 'points_earned', 'points_redeemed'];
   
   // Process each row according to the mapping
-  const processedRows = data.slice(1).map(row => [
-    cleanMobileNumber(row[mapping.mobile - 1]),  // Mobile Number
-    row[mapping.bill_number - 1],                // Bill Number
-    cleanNumericValue(row[mapping.bill_amount - 1]), // Bill Amount
-    formatDate(row[mapping.order_time - 1]),     // Order Time
-  ]);
+  const processedRows = data.slice(1).map(row => {
+    // Convert column labels to indices
+    const mobileIndex = columnLabelToIndex(mapping.mobile);
+    const billNumberIndex = columnLabelToIndex(mapping.bill_number);
+    const billAmountIndex = columnLabelToIndex(mapping.bill_amount);
+    const orderTimeIndex = columnLabelToIndex(mapping.order_time);
+    const pointsEarnedIndex = columnLabelToIndex(mapping.points_earned);
+    const pointsRedeemedIndex = columnLabelToIndex(mapping.points_redeemed);
+    
+    // Check if the row has any data (to auto-fill txn_type)
+    const hasData = row.some(cell => cell !== null && cell !== undefined && cell !== '');
+    
+    return [
+      cleanMobileNumber(mobileIndex >= 0 ? row[mobileIndex] : ''),         // mobile
+      hasData ? 'purchase' : '',                                           // txn_type (auto-filled)
+      billNumberIndex >= 0 ? row[billNumberIndex] : '',                     // bill_number
+      cleanNumericValue(billAmountIndex >= 0 ? row[billAmountIndex] : ''),  // bill_amount
+      preserveTimeInDate(orderTimeIndex >= 0 ? row[orderTimeIndex] : ''),   // order_time (with time preserved)
+      cleanNumericValue(pointsEarnedIndex >= 0 ? row[pointsEarnedIndex] : ''), // points_earned
+      cleanNumericValue(pointsRedeemedIndex >= 0 ? row[pointsRedeemedIndex] : ''), // points_redeemed
+    ];
+  });
   
   // Return processed data with header
   return [header, ...processedRows];
@@ -146,20 +195,30 @@ export async function generateContactsFile(rawData: any[][], mapping: ContactsCo
 }
 
 function processContactsData(data: any[][], mapping: ContactsColumnMapping): any[][] {
-  // Create header row for contacts file
-  const header = ['Phone Number', 'Name', 'Email', 'Birthday', 'Anniversary', 'Gender', 'Points', 'Tags'];
+  // Create header row with the required order and names
+  const header = ['mobile', 'name', 'email', 'birthday', 'anniversary', 'gender', 'points', 'tags'];
   
   // Process each row according to the mapping
   const processedRows = data.slice(1).map(row => {
+    // Convert column labels to indices
+    const mobileIndex = columnLabelToIndex(mapping.mobile);
+    const nameIndex = columnLabelToIndex(mapping.name);
+    const emailIndex = columnLabelToIndex(mapping.email);
+    const birthdayIndex = columnLabelToIndex(mapping.birthday);
+    const anniversaryIndex = columnLabelToIndex(mapping.anniversary);
+    const genderIndex = columnLabelToIndex(mapping.gender);
+    const pointsIndex = columnLabelToIndex(mapping.points);
+    const tagsIndex = columnLabelToIndex(mapping.tags);
+    
     return [
-      cleanMobileNumber(row[mapping.mobile - 1]),              // Phone Number
-      mapping.name ? cleanTextValue(row[mapping.name - 1]) : '',              // Name
-      mapping.email ? cleanEmailValue(row[mapping.email - 1]) : '',           // Email
-      mapping.birthday ? formatDate(row[mapping.birthday - 1]) : '',          // Birthday
-      mapping.anniversary ? formatDate(row[mapping.anniversary - 1]) : '',    // Anniversary
-      mapping.gender ? cleanTextValue(row[mapping.gender - 1]) : '',          // Gender
-      mapping.points ? cleanNumericValue(row[mapping.points - 1]) : '',       // Points
-      mapping.tags ? cleanTextValue(row[mapping.tags - 1]) : '',              // Tags
+      cleanMobileNumber(mobileIndex >= 0 ? row[mobileIndex] : ''),         // mobile
+      nameIndex >= 0 ? cleanTextValue(row[nameIndex]) : '',                 // name
+      emailIndex >= 0 ? cleanEmailValue(row[emailIndex]) : '',              // email
+      birthdayIndex >= 0 ? formatDate(row[birthdayIndex]) : '',             // birthday
+      anniversaryIndex >= 0 ? formatDate(row[anniversaryIndex]) : '',       // anniversary
+      genderIndex >= 0 ? cleanTextValue(row[genderIndex]) : '',             // gender
+      pointsIndex >= 0 ? cleanNumericValue(row[pointsIndex]) : '',          // points
+      tagsIndex >= 0 ? cleanTextValue(row[tagsIndex]) : '',                 // tags
     ];
   });
 
@@ -221,6 +280,42 @@ function cleanNumericValue(value: any): number | string {
   const numericValue = parseFloat(strValue.replace(/[^\d.-]/g, ''));
   
   return isNaN(numericValue) ? '' : numericValue;
+}
+
+// Format date but preserve time component
+function preserveTimeInDate(value: any): string {
+  if (!value) return '';
+  
+  try {
+    // If it's an Excel date (numeric)
+    if (typeof value === 'number' || (typeof value === 'string' && /^[0-9]+(\.[0-9]+)?$/.test(value))) {
+      try {
+        const dateObj = XLSX.SSF.parse_date_code(parseFloat(String(value)));
+        return new Date(
+          dateObj.y, 
+          dateObj.m - 1, 
+          dateObj.d,
+          dateObj.H || 0,
+          dateObj.M || 0,
+          dateObj.S || 0
+        ).toISOString().replace('Z', '');
+      } catch (e) {
+        // Not an Excel date, continue with other parsing methods
+      }
+    }
+    
+    // Try to parse as Date
+    const dateObj = new Date(value);
+    if (isNaN(dateObj.getTime())) {
+      return '';
+    }
+    
+    // Format including time if available
+    return dateObj.toISOString().replace('Z', '');
+  } catch (error) {
+    console.error('Error formatting date with time:', error);
+    return '';
+  }
 }
 
 function formatDate(value: any): string {
