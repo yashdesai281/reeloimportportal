@@ -1,8 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
   Select, 
@@ -11,12 +9,11 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { ChevronRight, CheckIcon } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { 
   ContactsColumnMapping, 
-  columnLabelToIndex, 
   indexToColumnLabel 
-} from '@/utils/fileProcessing';
+} from '@/utils/types';
 
 interface ContactsMappingProps {
   onComplete: (columnMapping: ContactsColumnMapping) => void;
@@ -63,6 +60,8 @@ const ContactsMapping: React.FC<ContactsMappingProps> = ({ onComplete, onCancel,
     };
     
     headers.forEach((header, index) => {
+      if (!header) return; // Skip empty headers
+      
       const lowerHeader = header.toLowerCase();
       const columnLabel = indexToColumnLabel(index);
       
@@ -124,6 +123,38 @@ const ContactsMapping: React.FC<ContactsMappingProps> = ({ onComplete, onCancel,
       onComplete(columnMapping);
     }
   };
+
+  const renderColumnSelector = (
+    field: keyof ContactsColumnMapping,
+    label: string,
+    required: boolean = false
+  ) => {
+    return (
+      <div className="space-y-2">
+        <Label htmlFor={field} className="flex items-center">
+          {label} {required && <span className="text-destructive ml-1">*</span>}
+        </Label>
+        <Select 
+          value={columnMapping[field]} 
+          onValueChange={(value) => handleColumnChange(field, value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={`Select column ${required ? '' : '(optional)'}`} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_none">-- Not included --</SelectItem>
+            {headerRow.map((header, index) => (
+              header ? (
+                <SelectItem key={`${field}-${index}`} value={indexToColumnLabel(index)}>
+                  Column {indexToColumnLabel(index)}: {header || '[Empty]'}
+                </SelectItem>
+              ) : null
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  };
   
   return (
     <div className="w-full max-w-xl mx-auto">
@@ -136,93 +167,20 @@ const ContactsMapping: React.FC<ContactsMappingProps> = ({ onComplete, onCancel,
         
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Mobile/Phone Number Field (Required) */}
-          <div className="space-y-2">
-            <Label htmlFor="mobile" className="flex items-center">
-              Mobile/Phone Number <span className="text-destructive ml-1">*</span>
-            </Label>
-            <Select 
-              value={columnMapping.mobile} 
-              onValueChange={(value) => handleColumnChange('mobile', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select column" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">-- Select a column --</SelectItem>
-                {headerRow.map((header, index) => (
-                  <SelectItem key={`mobile-${index}`} value={indexToColumnLabel(index)}>
-                    Column {indexToColumnLabel(index)}: {header}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {renderColumnSelector('mobile', 'Mobile/Phone Number', true)}
           
           {/* Name Field */}
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Select 
-              value={columnMapping.name} 
-              onValueChange={(value) => handleColumnChange('name', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select column (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">-- Not included --</SelectItem>
-                {headerRow.map((header, index) => (
-                  <SelectItem key={`name-${index}`} value={indexToColumnLabel(index)}>
-                    Column {indexToColumnLabel(index)}: {header}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {renderColumnSelector('name', 'Name')}
           
           {/* Email Field */}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Select 
-              value={columnMapping.email} 
-              onValueChange={(value) => handleColumnChange('email', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select column (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">-- Not included --</SelectItem>
-                {headerRow.map((header, index) => (
-                  <SelectItem key={`email-${index}`} value={indexToColumnLabel(index)}>
-                    Column {indexToColumnLabel(index)}: {header}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {renderColumnSelector('email', 'Email')}
           
           {/* Birthday Field */}
-          <div className="space-y-2">
-            <Label htmlFor="birthday">Birthday</Label>
-            <Select 
-              value={columnMapping.birthday} 
-              onValueChange={(value) => handleColumnChange('birthday', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select column (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">-- Not included --</SelectItem>
-                {headerRow.map((header, index) => (
-                  <SelectItem key={`birthday-${index}`} value={indexToColumnLabel(index)}>
-                    Column {indexToColumnLabel(index)}: {header}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {renderColumnSelector('birthday', 'Birthday')}
           
           {/* Additional Fields (Anniversary, Gender, Points, Tags) */}
           <div className="grid grid-cols-2 gap-4">
+            {/* Anniversary Field */}
             <div className="space-y-2">
               <Label htmlFor="anniversary">Anniversary</Label>
               <Select 
@@ -233,16 +191,19 @@ const ContactsMapping: React.FC<ContactsMappingProps> = ({ onComplete, onCancel,
                   <SelectValue placeholder="Select column (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">-- Not included --</SelectItem>
+                  <SelectItem value="_none">-- Not included --</SelectItem>
                   {headerRow.map((header, index) => (
-                    <SelectItem key={`anniversary-${index}`} value={indexToColumnLabel(index)}>
-                      Column {indexToColumnLabel(index)}: {header}
-                    </SelectItem>
+                    header ? (
+                      <SelectItem key={`anniversary-${index}`} value={indexToColumnLabel(index)}>
+                        Column {indexToColumnLabel(index)}: {header || '[Empty]'}
+                      </SelectItem>
+                    ) : null
                   ))}
                 </SelectContent>
               </Select>
             </div>
             
+            {/* Gender Field */}
             <div className="space-y-2">
               <Label htmlFor="gender">Gender</Label>
               <Select 
@@ -253,16 +214,19 @@ const ContactsMapping: React.FC<ContactsMappingProps> = ({ onComplete, onCancel,
                   <SelectValue placeholder="Select column (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">-- Not included --</SelectItem>
+                  <SelectItem value="_none">-- Not included --</SelectItem>
                   {headerRow.map((header, index) => (
-                    <SelectItem key={`gender-${index}`} value={indexToColumnLabel(index)}>
-                      Column {indexToColumnLabel(index)}: {header}
-                    </SelectItem>
+                    header ? (
+                      <SelectItem key={`gender-${index}`} value={indexToColumnLabel(index)}>
+                        Column {indexToColumnLabel(index)}: {header || '[Empty]'}
+                      </SelectItem>
+                    ) : null
                   ))}
                 </SelectContent>
               </Select>
             </div>
             
+            {/* Points Field */}
             <div className="space-y-2">
               <Label htmlFor="points">Points</Label>
               <Select 
@@ -273,16 +237,19 @@ const ContactsMapping: React.FC<ContactsMappingProps> = ({ onComplete, onCancel,
                   <SelectValue placeholder="Select column (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">-- Not included --</SelectItem>
+                  <SelectItem value="_none">-- Not included --</SelectItem>
                   {headerRow.map((header, index) => (
-                    <SelectItem key={`points-${index}`} value={indexToColumnLabel(index)}>
-                      Column {indexToColumnLabel(index)}: {header}
-                    </SelectItem>
+                    header ? (
+                      <SelectItem key={`points-${index}`} value={indexToColumnLabel(index)}>
+                        Column {indexToColumnLabel(index)}: {header || '[Empty]'}
+                      </SelectItem>
+                    ) : null
                   ))}
                 </SelectContent>
               </Select>
             </div>
             
+            {/* Tags Field */}
             <div className="space-y-2">
               <Label htmlFor="tags">Tags</Label>
               <Select 
@@ -293,11 +260,13 @@ const ContactsMapping: React.FC<ContactsMappingProps> = ({ onComplete, onCancel,
                   <SelectValue placeholder="Select column (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">-- Not included --</SelectItem>
+                  <SelectItem value="_none">-- Not included --</SelectItem>
                   {headerRow.map((header, index) => (
-                    <SelectItem key={`tags-${index}`} value={indexToColumnLabel(index)}>
-                      Column {indexToColumnLabel(index)}: {header}
-                    </SelectItem>
+                    header ? (
+                      <SelectItem key={`tags-${index}`} value={indexToColumnLabel(index)}>
+                        Column {indexToColumnLabel(index)}: {header || '[Empty]'}
+                      </SelectItem>
+                    ) : null
                   ))}
                 </SelectContent>
               </Select>

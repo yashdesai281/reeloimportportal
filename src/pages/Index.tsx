@@ -15,11 +15,11 @@ import {
   ContactsColumnMapping 
 } from '@/utils/fileProcessing';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Upload, History } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
+import { ErrorBoundary, ContactsMappingError } from '@/components/ErrorHandler';
 
+// Application steps
 enum AppStep {
   UPLOAD,
   COLUMN_MAPPING,
@@ -29,12 +29,14 @@ enum AppStep {
   COMPLETE
 }
 
+// File processing result
 interface ProcessedFile {
   data: Blob;
   fileName: string;
 }
 
 const Index = () => {
+  // Application state
   const [currentStep, setCurrentStep] = useState<AppStep>(AppStep.UPLOAD);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [columnMapping, setColumnMapping] = useState<ColumnMappingType | null>(null);
@@ -44,12 +46,14 @@ const Index = () => {
   const [contactsFile, setContactsFile] = useState<ProcessedFile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [viewMode, setViewMode] = useState<'upload' | 'history'>('upload');
+  const [processingError, setProcessingError] = useState<Error | null>(null);
 
+  // Check Supabase connection on load
   useEffect(() => {
     const checkConnection = async () => {
       try {
         const { data, error } = await supabase.from('processed_files').select('count').single();
-        console.log('Supabase connection check:', data !== null ? 'Connected' : 'Error');
+        console.log('Supabase connection check:', data !== null ? 'Connected' : 'Error', error);
         setIsLoading(false);
       } catch (err) {
         console.error('Error connecting to Supabase:', err);
@@ -60,20 +64,25 @@ const Index = () => {
     checkConnection();
   }, []);
 
+  // File selection handler
   const handleFileSelected = (file: File) => {
+    console.log("File selected:", file.name);
     setSelectedFile(file);
     setCurrentStep(AppStep.COLUMN_MAPPING);
   };
 
+  // Column mapping completion handler
   const handleColumnMappingComplete = async (mapping: ColumnMappingType) => {
+    console.log("Column mapping completed:", mapping);
     setColumnMapping(mapping);
     setCurrentStep(AppStep.PROCESSING);
+    setProcessingError(null);
 
     try {
       if (selectedFile) {
-        console.log("Processing file with mapping:", mapping);
+        console.log("Starting file processing...");
         const result = await processFile(selectedFile, mapping);
-        console.log("Process file result:", result);
+        console.log("File processing complete");
         
         setTransactionFile({
           data: result.transactionData,
@@ -94,15 +103,17 @@ const Index = () => {
       }
     } catch (error) {
       console.error('Error during file processing:', error);
+      setProcessingError(error instanceof Error ? error : new Error('Unknown error'));
       toast({
         variant: "destructive",
         title: "Error processing file",
         description: error instanceof Error ? error.message : 'An unknown error occurred',
       });
-      resetApp();
+      setCurrentStep(AppStep.COMPLETE);
     }
   };
 
+  // Contacts confirmation handler
   const handleContactsConfirmation = (generate: boolean) => {
     if (generate) {
       console.log("User confirmed contacts file generation");
@@ -116,15 +127,18 @@ const Index = () => {
     }
   };
 
+  // Contacts mapping completion handler
   const handleContactsMappingComplete = async (mapping: ContactsColumnMapping) => {
-    console.log("Contacts mapping completed, setting processing step");
+    console.log("Contacts mapping completed:", mapping);
     setCurrentStep(AppStep.PROCESSING);
+    setProcessingError(null);
 
     try {
       if (rawFileData) {
-        console.log("Generating contacts file with mapping:", mapping);
+        console.log("Starting contacts file generation...");
         const result = await generateContactsFile(rawFileData, mapping);
-        console.log("Contacts file generation result:", result);
+        console.log("Contacts file generation complete");
+        
         setContactsFile(result);
         setCurrentStep(AppStep.COMPLETE);
         toast({
@@ -134,6 +148,7 @@ const Index = () => {
       }
     } catch (error) {
       console.error('Error generating contacts file:', error);
+      setProcessingError(error instanceof Error ? error : new Error('Unknown error'));
       toast({
         variant: "destructive",
         title: "Error generating contacts file",
@@ -143,6 +158,7 @@ const Index = () => {
     }
   };
 
+  // File download handlers
   const handleDownloadTransaction = () => {
     if (transactionFile) {
       downloadFile(transactionFile.data, transactionFile.fileName);
@@ -163,7 +179,9 @@ const Index = () => {
     }
   };
 
+  // Reset application state
   const resetApp = () => {
+    console.log("Resetting application state");
     setCurrentStep(AppStep.UPLOAD);
     setSelectedFile(null);
     setColumnMapping(null);
@@ -171,8 +189,10 @@ const Index = () => {
     setHasContactData(false);
     setTransactionFile(null);
     setContactsFile(null);
+    setProcessingError(null);
   };
 
+  // Navigation handler
   const handleBack = () => {
     if (currentStep === AppStep.COLUMN_MAPPING) {
       setCurrentStep(AppStep.UPLOAD);
@@ -183,6 +203,7 @@ const Index = () => {
     }
   };
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -194,15 +215,17 @@ const Index = () => {
     );
   }
 
-  // Add additional debugging information
+  // Debug logs
   console.log("Current application state:", {
+    step: AppStep[currentStep],
     currentStep,
     hasFile: !!selectedFile,
     hasMapping: !!columnMapping,
     hasRawData: !!rawFileData,
     hasContactData,
     hasTransactionFile: !!transactionFile,
-    hasContactsFile: !!contactsFile
+    hasContactsFile: !!contactsFile,
+    hasError: !!processingError
   });
 
   return (
@@ -277,59 +300,62 @@ const Index = () => {
             </div>
 
             <div className="w-full transition-all duration-300 ease-in-out">
-              {currentStep === AppStep.UPLOAD && (
-                <div className="animate-fade-in">
-                  <FileUpload 
-                    onFileSelected={handleFileSelected} 
-                    accept=".csv,.xlsx,.xls" 
-                  />
-                </div>
-              )}
-
-              {currentStep === AppStep.COLUMN_MAPPING && (
-                <div className="animate-fade-in">
-                  <ColumnMapping 
-                    step={1} 
-                    onComplete={handleColumnMappingComplete}
-                    onBack={handleBack}
-                  />
-                </div>
-              )}
-
-              {currentStep === AppStep.CONTACTS_CONFIRMATION && (
-                <div className="animate-fade-in">
-                  <ContactsConfirmation
-                    onConfirm={() => handleContactsConfirmation(true)}
-                    onCancel={() => handleContactsConfirmation(false)}
-                  />
-                </div>
-              )}
-
-              {currentStep === AppStep.CONTACTS_MAPPING && rawFileData && (
-                <div className="animate-fade-in">
-                  <ErrorBoundary fallback={<ContactsMappingError onReset={resetApp} />}>
-                    <ContactsMapping
-                      onComplete={handleContactsMappingComplete}
-                      onCancel={() => setCurrentStep(AppStep.COMPLETE)}
-                      rawData={rawFileData}
+              <ErrorBoundary>
+                {currentStep === AppStep.UPLOAD && (
+                  <div className="animate-fade-in">
+                    <FileUpload 
+                      onFileSelected={handleFileSelected} 
+                      accept=".csv,.xlsx,.xls" 
                     />
-                  </ErrorBoundary>
-                </div>
-              )}
+                  </div>
+                )}
 
-              {(currentStep === AppStep.PROCESSING || currentStep === AppStep.COMPLETE) && (
-                <div className="animate-fade-in">
-                  <ProcessingStatus
-                    isProcessing={currentStep === AppStep.PROCESSING}
-                    isComplete={currentStep === AppStep.COMPLETE}
-                    transactionFileName={transactionFile?.fileName || null}
-                    contactsFileName={contactsFile?.fileName || null}
-                    onDownloadTransaction={handleDownloadTransaction}
-                    onDownloadContacts={handleDownloadContacts}
-                    onReset={resetApp}
-                  />
-                </div>
-              )}
+                {currentStep === AppStep.COLUMN_MAPPING && (
+                  <div className="animate-fade-in">
+                    <ColumnMapping 
+                      step={1} 
+                      onComplete={handleColumnMappingComplete}
+                      onBack={handleBack}
+                    />
+                  </div>
+                )}
+
+                {currentStep === AppStep.CONTACTS_CONFIRMATION && (
+                  <div className="animate-fade-in">
+                    <ContactsConfirmation
+                      onConfirm={() => handleContactsConfirmation(true)}
+                      onCancel={() => handleContactsConfirmation(false)}
+                    />
+                  </div>
+                )}
+
+                {currentStep === AppStep.CONTACTS_MAPPING && rawFileData && (
+                  <div className="animate-fade-in">
+                    <ErrorBoundary fallback={<ContactsMappingError onReset={resetApp} />}>
+                      <ContactsMapping
+                        onComplete={handleContactsMappingComplete}
+                        onCancel={() => setCurrentStep(AppStep.COMPLETE)}
+                        rawData={rawFileData}
+                      />
+                    </ErrorBoundary>
+                  </div>
+                )}
+
+                {(currentStep === AppStep.PROCESSING || currentStep === AppStep.COMPLETE) && (
+                  <div className="animate-fade-in">
+                    <ProcessingStatus
+                      isProcessing={currentStep === AppStep.PROCESSING}
+                      isComplete={currentStep === AppStep.COMPLETE}
+                      transactionFileName={transactionFile?.fileName || null}
+                      contactsFileName={contactsFile?.fileName || null}
+                      onDownloadTransaction={handleDownloadTransaction}
+                      onDownloadContacts={handleDownloadContacts}
+                      onReset={resetApp}
+                      error={processingError}
+                    />
+                  </div>
+                )}
+              </ErrorBoundary>
             </div>
           </>
         )}
@@ -346,41 +372,6 @@ const Index = () => {
           Transaction File Import Portal — Process your transaction data with ease.
         </div>
       </footer>
-    </div>
-  );
-};
-
-// Add a simple error boundary component
-class ErrorBoundary extends React.Component<{
-  children: React.ReactNode;
-  fallback: React.ReactNode;
-}> {
-  state = { hasError: false, error: null };
-  
-  static getDerivedStateFromError(error: any) {
-    return { hasError: true, error };
-  }
-  
-  componentDidCatch(error: any, errorInfo: any) {
-    console.error("Component error:", error, errorInfo);
-  }
-  
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback;
-    }
-    
-    return this.props.children;
-  }
-}
-
-// Add a simple error fallback component
-const ContactsMappingError = ({ onReset }: { onReset: () => void }) => {
-  return (
-    <div className="p-8 bg-white rounded-lg shadow-md text-center">
-      <h3 className="text-xl font-semibold text-destructive mb-4">An error occurred in the contacts mapping</h3>
-      <p className="mb-6 text-muted-foreground">There was a problem with the contacts mapping component. This might be due to an issue with the data format.</p>
-      <Button onClick={onReset} variant="default">Start Over</Button>
     </div>
   );
 };
