@@ -16,6 +16,9 @@ export interface ContactsColumnMapping {
   email: string;
   birthday: string;
   points: string;
+  anniversary: string;
+  gender: string;
+  tags: string;
 }
 
 interface ProcessFileResult {
@@ -64,13 +67,11 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
     console.log("Processing file:", file.name);
     console.log("With column mapping:", columnMapping);
     
-    // Read the file
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer);
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
     
-    // Convert to array of arrays for easier processing
     const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
     console.log(`Raw data loaded, ${rawData.length} rows found`);
     
@@ -78,16 +79,12 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
       throw new Error("File contains no data rows");
     }
     
-    // Create new workbook with specific format
     const transactionWB = XLSX.utils.book_new();
     
-    // Create header row for transaction file
     const transactionHeaders = ["mobile", "txn_type", "bill_number", "bill_amount", "order_time", "points_earned", "points_redeemed"];
     
-    // Map data using column mapping
     const transactionData: any[][] = [transactionHeaders];
     
-    // Map column indices to actual indices
     const columnIndices = {
       mobile: columnMapping.mobile ? columnLabelToIndex(columnMapping.mobile) : -1,
       bill_number: columnMapping.bill_number ? columnLabelToIndex(columnMapping.bill_number) : -1,
@@ -99,45 +96,35 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
     
     console.log("Mapped column indices:", columnIndices);
     
-    // Skip the header row of the original data
     for (let i = 1; i < rawData.length; i++) {
       const row = rawData[i];
-      const newRow = ["", "", "", "", "", "", ""];  // Initialize with empty strings for all columns
+      const newRow = ["", "", "", "", "", "", ""];
       
-      // Check if the row has any data
       const hasData = row.some((cell: any) => cell !== undefined && cell !== null && cell !== "");
       
       if (hasData) {
-        // Mobile number
         if (columnIndices.mobile >= 0 && row[columnIndices.mobile] !== undefined) {
           newRow[0] = String(row[columnIndices.mobile]).trim();
         }
         
-        // Transaction type (always "purchase")
         newRow[1] = "purchase";
         
-        // Bill number
         if (columnIndices.bill_number >= 0 && row[columnIndices.bill_number] !== undefined) {
           newRow[2] = String(row[columnIndices.bill_number]).trim();
         }
         
-        // Bill amount
         if (columnIndices.bill_amount >= 0 && row[columnIndices.bill_amount] !== undefined) {
           newRow[3] = String(row[columnIndices.bill_amount]).trim();
         }
         
-        // Order time
         if (columnIndices.order_time >= 0 && row[columnIndices.order_time] !== undefined) {
-          // Maintain the date format but ensure it's a string
           newRow[4] = String(row[columnIndices.order_time]).trim();
         }
         
-        // Points earned
         if (columnIndices.points_earned >= 0 && row[columnIndices.points_earned] !== undefined) {
           newRow[5] = String(row[columnIndices.points_earned]).trim();
         }
         
-        // Points redeemed
         if (columnIndices.points_redeemed >= 0 && row[columnIndices.points_redeemed] !== undefined) {
           newRow[6] = String(row[columnIndices.points_redeemed]).trim();
         }
@@ -148,25 +135,18 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
     
     console.log(`Transaction data prepared, ${transactionData.length} rows (including header)`);
     
-    // Create worksheet and add to workbook
     const transactionWS = XLSX.utils.aoa_to_sheet(transactionData);
     XLSX.utils.book_append_sheet(transactionWB, transactionWS, "Transactions");
     
-    // Generate filename with timestamp
     const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, -5);
     const transactionFileName = `transaction_${timestamp}.xlsx`;
     
-    // Convert to blob
     const transactionBlob = await workbook_to_blob(transactionWB);
     
-    // Determine if the file has contact data (check mobile column)
     const hasContactData = transactionData.some((row, index) => 
       index > 0 && row[0] !== undefined && row[0] !== null && row[0] !== ""
     );
     
-    console.log("Has contact data:", hasContactData);
-    
-    // Store processing information in Supabase
     try {
       const { error } = await supabase.from('processed_files').insert({
         file_name: transactionFileName,
@@ -176,11 +156,9 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
       
       if (error) {
         console.error("Error saving to Supabase:", error);
-        // Continue processing even if Supabase storage fails
       }
     } catch (dbError) {
       console.error("Exception during Supabase operation:", dbError);
-      // Continue processing even if Supabase operation fails
     }
     
     return {
@@ -200,47 +178,56 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
     console.log("Generating contacts file with mapping:", mapping);
 
     const contactsWB = XLSX.utils.book_new();
-    const contactsHeaders = ["name", "mobile", "email", "birthday", "points"];
+    const contactsHeaders = ["name", "mobile", "email", "birthday", "points", "anniversary", "gender", "tags"];
     const contactsData: any[][] = [contactsHeaders];
 
-    // Convert column letters to indices
     const columnIndex = {
       name: mapping.name ? columnLabelToIndex(mapping.name) : -1,
       mobile: mapping.mobile ? columnLabelToIndex(mapping.mobile) : -1,
       email: mapping.email ? columnLabelToIndex(mapping.email) : -1,
       birthday: mapping.birthday ? columnLabelToIndex(mapping.birthday) : -1,
       points: mapping.points ? columnLabelToIndex(mapping.points) : -1,
+      anniversary: mapping.anniversary ? columnLabelToIndex(mapping.anniversary) : -1,
+      gender: mapping.gender ? columnLabelToIndex(mapping.gender) : -1,
+      tags: mapping.tags ? columnLabelToIndex(mapping.tags) : -1
     };
 
     console.log("Contacts column indices:", columnIndex);
 
     for (let i = 1; i < rawData.length; i++) {
       const row = rawData[i];
-      const newRow = ["", "", "", "", ""];
+      const newRow = ["", "", "", "", "", "", "", ""];
 
-      // Name
       if (columnIndex.name >= 0 && row[columnIndex.name] !== undefined) {
         newRow[0] = String(row[columnIndex.name]).trim();
       }
 
-      // Mobile
       if (columnIndex.mobile >= 0 && row[columnIndex.mobile] !== undefined) {
         newRow[1] = String(row[columnIndex.mobile]).trim();
       }
 
-      // Email
       if (columnIndex.email >= 0 && row[columnIndex.email] !== undefined) {
         newRow[2] = String(row[columnIndex.email]).trim();
       }
 
-      // Birthday
       if (columnIndex.birthday >= 0 && row[columnIndex.birthday] !== undefined) {
         newRow[3] = String(row[columnIndex.birthday]).trim();
       }
 
-      // Points
       if (columnIndex.points >= 0 && row[columnIndex.points] !== undefined) {
         newRow[4] = String(row[columnIndex.points]).trim();
+      }
+      
+      if (columnIndex.anniversary >= 0 && row[columnIndex.anniversary] !== undefined) {
+        newRow[5] = String(row[columnIndex.anniversary]).trim();
+      }
+      
+      if (columnIndex.gender >= 0 && row[columnIndex.gender] !== undefined) {
+        newRow[6] = String(row[columnIndex.gender]).trim();
+      }
+      
+      if (columnIndex.tags >= 0 && row[columnIndex.tags] !== undefined) {
+        newRow[7] = String(row[columnIndex.tags]).trim();
       }
 
       contactsData.push(newRow);
