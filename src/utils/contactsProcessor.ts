@@ -2,7 +2,7 @@
 import * as XLSX from 'xlsx';
 import { ContactsColumnMapping, ContactsFileResult } from './types';
 import { columnLabelToIndex } from './columnUtils';
-import { workbookToBlob, formatPhoneNumber } from './excelUtils';
+import { workbookToBlob, formatPhoneNumber, applyWorksheetStyling } from './excelUtils';
 
 /**
  * Generate a contacts file from raw data using the specified column mapping
@@ -102,12 +102,8 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
     // Create a worksheet from the data
     const contactsWS = XLSX.utils.aoa_to_sheet(contactsData);
     
-    // Apply some formatting to make the headers stand out
-    const headerStyle = { font: { bold: true }, fill: { fgColor: { rgb: "EFEFEF" } } };
-    for (let i = 0; i < contactsHeaders.length; i++) {
-      const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
-      contactsWS[cellRef].s = headerStyle;
-    }
+    // Apply column styling and formatting
+    applyWorksheetStyling(contactsWS, contactsHeaders);
     
     // Add the worksheet to the workbook
     XLSX.utils.book_append_sheet(contactsWB, contactsWS, "Contacts");

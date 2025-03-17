@@ -69,3 +69,64 @@ export const formatPhoneNumber = (phoneNumber: string): string => {
   
   return formattedNumber;
 };
+
+/**
+ * Apply column width and styling to a worksheet
+ */
+export const applyWorksheetStyling = (worksheet: XLSX.WorkSheet, headers: string[]): void => {
+  if (!worksheet || !headers) return;
+  
+  // Set column widths based on headers
+  const colWidths: { [key: string]: number } = {};
+  
+  // Default minimum width for each column
+  headers.forEach((header, i) => {
+    // Convert index to column reference (A, B, C, etc.)
+    const col = XLSX.utils.encode_col(i);
+    // Set appropriate width based on header type
+    switch (header.toLowerCase()) {
+      case 'name':
+        colWidths[col] = 20; // Name needs more space
+        break;
+      case 'mobile':
+        colWidths[col] = 15; // Mobile needs fixed width
+        break;
+      case 'email':
+        colWidths[col] = 25; // Email needs more space
+        break;
+      case 'birthday':
+      case 'anniversary':
+        colWidths[col] = 15; // Dates need moderate space
+        break;
+      case 'gender':
+        colWidths[col] = 10; // Gender is short
+        break;
+      case 'points':
+        colWidths[col] = 10; // Points is numeric and short
+        break;
+      case 'tags':
+        colWidths[col] = 20; // Tags might be longer
+        break;
+      default:
+        colWidths[col] = 12; // Default width
+    }
+  });
+  
+  // Apply column widths
+  worksheet['!cols'] = Object.keys(colWidths).map(col => ({ wch: colWidths[col] }));
+  
+  // Apply styling to header row
+  const headerStyle = { 
+    font: { bold: true, color: { rgb: "FFFFFF" } },
+    fill: { fgColor: { rgb: "4F81BD" } },
+    alignment: { horizontal: "center", vertical: "center" }
+  };
+  
+  // Apply styles to each header cell
+  for (let i = 0; i < headers.length; i++) {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+    if (!worksheet[cellRef]) worksheet[cellRef] = { v: headers[i] };
+    worksheet[cellRef].s = headerStyle;
+  }
+};
+
