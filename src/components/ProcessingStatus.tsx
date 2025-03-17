@@ -1,8 +1,7 @@
 
 import React from 'react';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Download, Loader2, FileText, Users } from 'lucide-react';
+import { CheckCircle, Download, FileText, Users, AlertTriangle } from 'lucide-react';
 
 interface ProcessingStatusProps {
   isProcessing: boolean;
@@ -12,6 +11,7 @@ interface ProcessingStatusProps {
   onDownloadTransaction: () => void;
   onDownloadContacts: () => void;
   onReset: () => void;
+  error?: Error | null;
 }
 
 const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
@@ -22,6 +22,7 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
   onDownloadTransaction,
   onDownloadContacts,
   onReset,
+  error,
 }) => {
   return (
     <div className="w-full max-w-xl mx-auto">
@@ -39,7 +40,7 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
           </div>
         )}
 
-        {isComplete && (
+        {isComplete && !error && (
           <div className="flex flex-col items-center justify-center py-8 animate-fade-in w-full">
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="w-10 h-10 text-primary" />
@@ -104,6 +105,52 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
                 Process Another File
               </Button>
             </div>
+          </div>
+        )}
+
+        {isComplete && error && (
+          <div className="flex flex-col items-center justify-center py-8 animate-fade-in w-full">
+            <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+              <AlertTriangle className="w-10 h-10 text-destructive" />
+            </div>
+            
+            <h3 className="text-xl font-medium text-center">Processing Error</h3>
+            
+            <p className="mt-2 text-muted-foreground text-center">
+              {error.message || "There was an error processing your file"}
+            </p>
+
+            {transactionFileName && (
+              <div className="mt-8 w-full">
+                <div className="border rounded-lg p-4 flex justify-between items-center">
+                  <div className="flex items-center">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-3">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Transaction File</p>
+                      <p className="text-xs text-muted-foreground">{transactionFileName}</p>
+                    </div>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="gap-1.5"
+                    onClick={onDownloadTransaction}
+                  >
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            <Button
+              onClick={onReset}
+              variant="default"
+              className="w-full h-10 mt-4"
+            >
+              Try Again
+            </Button>
           </div>
         )}
       </div>

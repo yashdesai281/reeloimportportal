@@ -11,9 +11,9 @@ import {
 } from '@/components/ui/select';
 import { ChevronRight } from 'lucide-react';
 import { 
-  ContactsColumnMapping, 
-  indexToColumnLabel 
+  ContactsColumnMapping
 } from '@/utils/types';
+import { indexToColumnLabel } from '@/utils/columnUtils';
 
 interface ContactsMappingProps {
   onComplete: (columnMapping: ContactsColumnMapping) => void;
@@ -59,52 +59,55 @@ const ContactsMapping: React.FC<ContactsMappingProps> = ({ onComplete, onCancel,
       tags: ''
     };
     
-    headers.forEach((header, index) => {
-      if (!header) return; // Skip empty headers
-      
-      const lowerHeader = header.toLowerCase();
-      const columnLabel = indexToColumnLabel(index);
-      
-      // Detect mobile/phone number column
-      if (lowerHeader.includes('mobile') || lowerHeader.includes('phone') || lowerHeader.includes('contact')) {
-        mapping.mobile = columnLabel;
-      }
-      
-      // Detect name column
-      if (lowerHeader.includes('name') || lowerHeader.includes('customer')) {
-        mapping.name = columnLabel;
-      }
-      
-      // Detect email column
-      if (lowerHeader.includes('email') || lowerHeader.includes('mail')) {
-        mapping.email = columnLabel;
-      }
-      
-      // Detect birthday column
-      if (lowerHeader.includes('birth') || lowerHeader.includes('dob') || lowerHeader === 'bday') {
-        mapping.birthday = columnLabel;
-      }
-      
-      // Detect anniversary column
-      if (lowerHeader.includes('anniv') || lowerHeader.includes('anniversary')) {
-        mapping.anniversary = columnLabel;
-      }
-      
-      // Detect gender column
-      if (lowerHeader.includes('gender') || lowerHeader.includes('sex')) {
-        mapping.gender = columnLabel;
-      }
-      
-      // Detect points column
-      if (lowerHeader.includes('point') || lowerHeader.includes('score')) {
-        mapping.points = columnLabel;
-      }
-      
-      // Detect tags column
-      if (lowerHeader.includes('tag') || lowerHeader.includes('category')) {
-        mapping.tags = columnLabel;
-      }
-    });
+    // Only process headers if they exist
+    if (headers && headers.length > 0) {
+      headers.forEach((header, index) => {
+        if (!header) return; // Skip empty headers
+        
+        const lowerHeader = header.toLowerCase();
+        const columnLabel = indexToColumnLabel(index);
+        
+        // Detect mobile/phone number column
+        if (lowerHeader.includes('mobile') || lowerHeader.includes('phone') || lowerHeader.includes('contact')) {
+          mapping.mobile = columnLabel;
+        }
+        
+        // Detect name column
+        if (lowerHeader.includes('name') || lowerHeader.includes('customer')) {
+          mapping.name = columnLabel;
+        }
+        
+        // Detect email column
+        if (lowerHeader.includes('email') || lowerHeader.includes('mail')) {
+          mapping.email = columnLabel;
+        }
+        
+        // Detect birthday column
+        if (lowerHeader.includes('birth') || lowerHeader.includes('dob') || lowerHeader === 'bday') {
+          mapping.birthday = columnLabel;
+        }
+        
+        // Detect anniversary column
+        if (lowerHeader.includes('anniv') || lowerHeader.includes('anniversary')) {
+          mapping.anniversary = columnLabel;
+        }
+        
+        // Detect gender column
+        if (lowerHeader.includes('gender') || lowerHeader.includes('sex')) {
+          mapping.gender = columnLabel;
+        }
+        
+        // Detect points column
+        if (lowerHeader.includes('point') || lowerHeader.includes('score')) {
+          mapping.points = columnLabel;
+        }
+        
+        // Detect tags column
+        if (lowerHeader.includes('tag') || lowerHeader.includes('category')) {
+          mapping.tags = columnLabel;
+        }
+      });
+    }
     
     setColumnMapping(mapping);
   };
@@ -181,96 +184,16 @@ const ContactsMapping: React.FC<ContactsMappingProps> = ({ onComplete, onCancel,
           {/* Additional Fields (Anniversary, Gender, Points, Tags) */}
           <div className="grid grid-cols-2 gap-4">
             {/* Anniversary Field */}
-            <div className="space-y-2">
-              <Label htmlFor="anniversary">Anniversary</Label>
-              <Select 
-                value={columnMapping.anniversary} 
-                onValueChange={(value) => handleColumnChange('anniversary', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select column (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">-- Not included --</SelectItem>
-                  {headerRow.map((header, index) => (
-                    header ? (
-                      <SelectItem key={`anniversary-${index}`} value={indexToColumnLabel(index)}>
-                        Column {indexToColumnLabel(index)}: {header || '[Empty]'}
-                      </SelectItem>
-                    ) : null
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderColumnSelector('anniversary', 'Anniversary')}
             
             {/* Gender Field */}
-            <div className="space-y-2">
-              <Label htmlFor="gender">Gender</Label>
-              <Select 
-                value={columnMapping.gender} 
-                onValueChange={(value) => handleColumnChange('gender', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select column (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">-- Not included --</SelectItem>
-                  {headerRow.map((header, index) => (
-                    header ? (
-                      <SelectItem key={`gender-${index}`} value={indexToColumnLabel(index)}>
-                        Column {indexToColumnLabel(index)}: {header || '[Empty]'}
-                      </SelectItem>
-                    ) : null
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderColumnSelector('gender', 'Gender')}
             
             {/* Points Field */}
-            <div className="space-y-2">
-              <Label htmlFor="points">Points</Label>
-              <Select 
-                value={columnMapping.points} 
-                onValueChange={(value) => handleColumnChange('points', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select column (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">-- Not included --</SelectItem>
-                  {headerRow.map((header, index) => (
-                    header ? (
-                      <SelectItem key={`points-${index}`} value={indexToColumnLabel(index)}>
-                        Column {indexToColumnLabel(index)}: {header || '[Empty]'}
-                      </SelectItem>
-                    ) : null
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderColumnSelector('points', 'Points')}
             
             {/* Tags Field */}
-            <div className="space-y-2">
-              <Label htmlFor="tags">Tags</Label>
-              <Select 
-                value={columnMapping.tags} 
-                onValueChange={(value) => handleColumnChange('tags', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select column (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">-- Not included --</SelectItem>
-                  {headerRow.map((header, index) => (
-                    header ? (
-                      <SelectItem key={`tags-${index}`} value={indexToColumnLabel(index)}>
-                        Column {indexToColumnLabel(index)}: {header || '[Empty]'}
-                      </SelectItem>
-                    ) : null
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {renderColumnSelector('tags', 'Tags')}
           </div>
           
           <div className="flex justify-between pt-4">

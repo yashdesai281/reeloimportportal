@@ -37,6 +37,7 @@ export const downloadFile = (data: Blob, fileName: string) => {
 
 /**
  * Formats a phone number by removing common prefixes like +91, 91
+ * and ensuring it follows the Indian mobile number format
  */
 export const formatPhoneNumber = (phoneNumber: string): string => {
   if (!phoneNumber) return '';
@@ -44,15 +45,27 @@ export const formatPhoneNumber = (phoneNumber: string): string => {
   // Convert to string and trim
   let formattedNumber = String(phoneNumber).trim();
   
+  // Remove all non-digit characters first
+  formattedNumber = formattedNumber.replace(/\D/g, '');
+  
   // Remove country code prefix +91 or 91
-  if (formattedNumber.startsWith('+91')) {
-    formattedNumber = formattedNumber.substring(3);
-  } else if (formattedNumber.startsWith('91') && formattedNumber.length > 10) {
+  if (formattedNumber.startsWith('91') && formattedNumber.length > 10) {
     formattedNumber = formattedNumber.substring(2);
   }
   
-  // Remove any spaces, dashes or parentheses
-  formattedNumber = formattedNumber.replace(/[\s\-\(\)]/g, '');
+  // Handle international format with + sign (already removed above)
+  // Just ensure we have the correct length
+  
+  // Ensure we have exactly 10 digits for Indian numbers
+  if (formattedNumber.length > 10) {
+    // If we have more than 10 digits, take the last 10
+    formattedNumber = formattedNumber.slice(-10);
+  }
+  
+  // Validate that it's a proper Indian mobile number (starts with 6-9)
+  if (formattedNumber.length === 10 && !/^[6-9]/.test(formattedNumber)) {
+    console.warn(`Invalid Indian mobile number format: ${formattedNumber}`);
+  }
   
   return formattedNumber;
 };

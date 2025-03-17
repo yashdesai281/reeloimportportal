@@ -12,12 +12,14 @@ import {
   downloadFile, 
   generateContactsFile, 
   ColumnMapping as ColumnMappingType,
-  ContactsColumnMapping 
+  ContactsColumnMapping,
+  formatPhoneNumber 
 } from '@/utils/fileProcessing';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Upload, History } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ErrorBoundary, ContactsMappingError } from '@/components/ErrorHandler';
+import { isExcelFile } from '@/utils/fileUtils';
 
 // Application steps
 enum AppStep {
@@ -67,6 +69,17 @@ const Index = () => {
   // File selection handler
   const handleFileSelected = (file: File) => {
     console.log("File selected:", file.name);
+    
+    // Validate file type
+    if (!isExcelFile(file)) {
+      toast({
+        variant: "destructive",
+        title: "Invalid file type",
+        description: "Please upload an Excel or CSV file",
+      });
+      return;
+    }
+    
     setSelectedFile(file);
     setCurrentStep(AppStep.COLUMN_MAPPING);
   };
