@@ -12,18 +12,20 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
 
     // Create a new workbook
     const contactsWB = XLSX.utils.book_new();
-    const contactsHeaders = ["mobile", "name", "email", "birthday", "points", "anniversary", "gender", "tags"];
+    
+    // Ensure the headers are in the correct order as requested
+    const contactsHeaders = ["mobile", "name", "email", "birthday", "anniversary", "gender", "points", "tags"];
     const contactsData: any[][] = [contactsHeaders];
 
     // Convert column labels to indices
     const columnIndex = {
-      name: mapping.name ? columnLabelToIndex(mapping.name) : -1,
       mobile: mapping.mobile ? columnLabelToIndex(mapping.mobile) : -1,
+      name: mapping.name ? columnLabelToIndex(mapping.name) : -1,
       email: mapping.email ? columnLabelToIndex(mapping.email) : -1,
       birthday: mapping.birthday ? columnLabelToIndex(mapping.birthday) : -1,
-      points: mapping.points ? columnLabelToIndex(mapping.points) : -1,
       anniversary: mapping.anniversary ? columnLabelToIndex(mapping.anniversary) : -1,
       gender: mapping.gender ? columnLabelToIndex(mapping.gender) : -1,
+      points: mapping.points ? columnLabelToIndex(mapping.points) : -1,
       tags: mapping.tags ? columnLabelToIndex(mapping.tags) : -1
     };
 
@@ -40,11 +42,12 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
         continue;
       }
 
-      // The array order must match the contactsHeaders order
+      // Create a new row with the same order as contactsHeaders
+      // [mobile, name, email, birthday, anniversary, gender, points, tags]
       const newRow = ["", "", "", "", "", "", "", ""];
       let hasValidData = false;
 
-      // Process mobile (required) - must be first in the array
+      // Process mobile (required) - index 0
       if (columnIndex.mobile >= 0 && row[columnIndex.mobile] !== undefined) {
         const mobileValue = formatPhoneNumber(String(row[columnIndex.mobile] || ""));
         newRow[0] = mobileValue;
@@ -52,43 +55,43 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
         hasValidData = hasValidData || !!mobileValue;
       }
 
-      // Process name - second in the array
+      // Process name - index 1
       if (columnIndex.name >= 0 && row[columnIndex.name] !== undefined) {
         newRow[1] = String(row[columnIndex.name] || "").trim();
         hasValidData = hasValidData || !!newRow[1];
       }
 
-      // Process email - third in the array
+      // Process email - index 2
       if (columnIndex.email >= 0 && row[columnIndex.email] !== undefined) {
         newRow[2] = String(row[columnIndex.email] || "").trim();
         hasValidData = hasValidData || !!newRow[2];
       }
 
-      // Process birthday - fourth in the array
+      // Process birthday - index 3
       if (columnIndex.birthday >= 0 && row[columnIndex.birthday] !== undefined) {
         newRow[3] = String(row[columnIndex.birthday] || "").trim();
         hasValidData = hasValidData || !!newRow[3];
       }
-
-      // Process points - fifth in the array
-      if (columnIndex.points >= 0 && row[columnIndex.points] !== undefined) {
-        newRow[4] = String(row[columnIndex.points] || "").trim();
+      
+      // Process anniversary - index 4
+      if (columnIndex.anniversary >= 0 && row[columnIndex.anniversary] !== undefined) {
+        newRow[4] = String(row[columnIndex.anniversary] || "").trim();
         hasValidData = hasValidData || !!newRow[4];
       }
       
-      // Process anniversary - sixth in the array
-      if (columnIndex.anniversary >= 0 && row[columnIndex.anniversary] !== undefined) {
-        newRow[5] = String(row[columnIndex.anniversary] || "").trim();
+      // Process gender - index 5
+      if (columnIndex.gender >= 0 && row[columnIndex.gender] !== undefined) {
+        newRow[5] = String(row[columnIndex.gender] || "").trim();
         hasValidData = hasValidData || !!newRow[5];
       }
       
-      // Process gender - seventh in the array
-      if (columnIndex.gender >= 0 && row[columnIndex.gender] !== undefined) {
-        newRow[6] = String(row[columnIndex.gender] || "").trim();
+      // Process points - index 6
+      if (columnIndex.points >= 0 && row[columnIndex.points] !== undefined) {
+        newRow[6] = String(row[columnIndex.points] || "").trim();
         hasValidData = hasValidData || !!newRow[6];
       }
       
-      // Process tags - eighth in the array
+      // Process tags - index 7
       if (columnIndex.tags >= 0 && row[columnIndex.tags] !== undefined) {
         newRow[7] = String(row[columnIndex.tags] || "").trim();
         hasValidData = hasValidData || !!newRow[7];

@@ -89,10 +89,10 @@ export const applyWorksheetStyling = (worksheet: XLSX.WorkSheet, headers: string
         colWidths[col] = 15; // Mobile needs fixed width
         break;
       case 'name':
-        colWidths[col] = 20; // Name needs more space
+        colWidths[col] = 25; // Name needs more space
         break;
       case 'email':
-        colWidths[col] = 25; // Email needs more space
+        colWidths[col] = 30; // Email needs more space
         break;
       case 'birthday':
         colWidths[col] = 15; // Dates need moderate space
@@ -107,10 +107,10 @@ export const applyWorksheetStyling = (worksheet: XLSX.WorkSheet, headers: string
         colWidths[col] = 10; // Gender is short
         break;
       case 'tags':
-        colWidths[col] = 20; // Tags might be longer
+        colWidths[col] = 25; // Tags might be longer
         break;
       default:
-        colWidths[col] = 12; // Default width
+        colWidths[col] = 15; // Default width
     }
   });
   
@@ -131,3 +131,4 @@ export const applyWorksheetStyling = (worksheet: XLSX.WorkSheet, headers: string
     worksheet[cellRef].s = headerStyle;
   }
 };
+
