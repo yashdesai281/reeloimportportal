@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { ContactsColumnMapping, ContactsFileResult } from './types';
 import { columnLabelToIndex } from './columnUtils';
@@ -13,7 +12,7 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
 
     // Create a new workbook
     const contactsWB = XLSX.utils.book_new();
-    const contactsHeaders = ["name", "mobile", "email", "birthday", "points", "anniversary", "gender", "tags"];
+    const contactsHeaders = ["mobile", "name", "email", "birthday", "points", "anniversary", "gender", "tags"];
     const contactsData: any[][] = [contactsHeaders];
 
     // Convert column labels to indices
@@ -30,6 +29,9 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
 
     console.log("Contacts column indices:", columnIndex);
 
+    // Create a map to track unique mobile numbers to avoid duplicates
+    const uniqueMobileNumbers = new Map<string, any[]>();
+
     // Skip the header row and process each data row
     for (let i = 1; i < rawData.length; i++) {
       const row = rawData[i];
@@ -38,66 +40,82 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
         continue;
       }
 
+      // The array order must match the contactsHeaders order
       const newRow = ["", "", "", "", "", "", "", ""];
       let hasValidData = false;
 
-      // Process name
-      if (columnIndex.name >= 0 && row[columnIndex.name] !== undefined) {
-        newRow[0] = String(row[columnIndex.name] || "").trim();
-        hasValidData = hasValidData || !!newRow[0];
-      }
-
-      // Process mobile (required)
+      // Process mobile (required) - must be first in the array
       if (columnIndex.mobile >= 0 && row[columnIndex.mobile] !== undefined) {
         const mobileValue = formatPhoneNumber(String(row[columnIndex.mobile] || ""));
-        newRow[1] = mobileValue;
+        newRow[0] = mobileValue;
         // Only consider the row valid if it has a non-empty mobile number
         hasValidData = hasValidData || !!mobileValue;
       }
 
-      // Process email
+      // Process name - second in the array
+      if (columnIndex.name >= 0 && row[columnIndex.name] !== undefined) {
+        newRow[1] = String(row[columnIndex.name] || "").trim();
+        hasValidData = hasValidData || !!newRow[1];
+      }
+
+      // Process email - third in the array
       if (columnIndex.email >= 0 && row[columnIndex.email] !== undefined) {
         newRow[2] = String(row[columnIndex.email] || "").trim();
         hasValidData = hasValidData || !!newRow[2];
       }
 
-      // Process birthday
+      // Process birthday - fourth in the array
       if (columnIndex.birthday >= 0 && row[columnIndex.birthday] !== undefined) {
         newRow[3] = String(row[columnIndex.birthday] || "").trim();
         hasValidData = hasValidData || !!newRow[3];
       }
 
-      // Process points
+      // Process points - fifth in the array
       if (columnIndex.points >= 0 && row[columnIndex.points] !== undefined) {
         newRow[4] = String(row[columnIndex.points] || "").trim();
         hasValidData = hasValidData || !!newRow[4];
       }
       
-      // Process anniversary
+      // Process anniversary - sixth in the array
       if (columnIndex.anniversary >= 0 && row[columnIndex.anniversary] !== undefined) {
         newRow[5] = String(row[columnIndex.anniversary] || "").trim();
         hasValidData = hasValidData || !!newRow[5];
       }
       
-      // Process gender
+      // Process gender - seventh in the array
       if (columnIndex.gender >= 0 && row[columnIndex.gender] !== undefined) {
         newRow[6] = String(row[columnIndex.gender] || "").trim();
         hasValidData = hasValidData || !!newRow[6];
       }
       
-      // Process tags
+      // Process tags - eighth in the array
       if (columnIndex.tags >= 0 && row[columnIndex.tags] !== undefined) {
         newRow[7] = String(row[columnIndex.tags] || "").trim();
         hasValidData = hasValidData || !!newRow[7];
       }
 
-      // Only add row if it has at least some valid data
-      if (hasValidData) {
-        contactsData.push(newRow);
+      // Only add row if it has at least some valid data and a mobile number
+      if (hasValidData && newRow[0]) {
+        const mobileNumber = newRow[0];
+        
+        // Check if this mobile number already exists
+        if (!uniqueMobileNumbers.has(mobileNumber)) {
+          // If it's a new number, store the row
+          uniqueMobileNumbers.set(mobileNumber, newRow);
+        } else {
+          // If duplicate, we might want to merge data or keep the most complete record
+          // For now, we'll keep the first occurrence (could be enhanced to keep the most complete record)
+          console.log(`Duplicate mobile number found: ${mobileNumber}`);
+        }
       }
     }
 
-    console.log(`Contacts data prepared, ${contactsData.length} rows (including header)`);
+    // Add all unique rows to the contactsData
+    uniqueMobileNumbers.forEach(row => {
+      contactsData.push(row);
+    });
+
+    console.log(`Contacts data prepared, ${contactsData.length} rows (including header), ${uniqueMobileNumbers.size} unique mobile numbers`);
 
     // Create a worksheet from the data
     const contactsWS = XLSX.utils.aoa_to_sheet(contactsData);

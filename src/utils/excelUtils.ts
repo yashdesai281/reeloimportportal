@@ -85,24 +85,26 @@ export const applyWorksheetStyling = (worksheet: XLSX.WorkSheet, headers: string
     const col = XLSX.utils.encode_col(i);
     // Set appropriate width based on header type
     switch (header.toLowerCase()) {
-      case 'name':
-        colWidths[col] = 20; // Name needs more space
-        break;
       case 'mobile':
         colWidths[col] = 15; // Mobile needs fixed width
+        break;
+      case 'name':
+        colWidths[col] = 20; // Name needs more space
         break;
       case 'email':
         colWidths[col] = 25; // Email needs more space
         break;
       case 'birthday':
+        colWidths[col] = 15; // Dates need moderate space
+        break;
+      case 'points':
+        colWidths[col] = 10; // Points is numeric and short
+        break;
       case 'anniversary':
         colWidths[col] = 15; // Dates need moderate space
         break;
       case 'gender':
         colWidths[col] = 10; // Gender is short
-        break;
-      case 'points':
-        colWidths[col] = 10; // Points is numeric and short
         break;
       case 'tags':
         colWidths[col] = 20; // Tags might be longer
@@ -129,4 +131,3 @@ export const applyWorksheetStyling = (worksheet: XLSX.WorkSheet, headers: string
     worksheet[cellRef].s = headerStyle;
   }
 };
-
