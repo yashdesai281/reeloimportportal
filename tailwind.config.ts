@@ -62,6 +62,11 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				reelo: {
+					teal: '#12C5D6',
+					'light-blue': '#E7F8FB',
+					blue: '#0F172A',
 				}
 			},
 			borderRadius: {

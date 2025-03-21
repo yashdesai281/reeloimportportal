@@ -82,40 +82,40 @@ const ProcessingStats: React.FC<ProcessingStatsProps> = ({ currentStats }) => {
   }
 
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Processing Statistics</CardTitle>
+    <Card className="shadow-sm border-0 reelo-card overflow-hidden">
+      <CardHeader className="pb-2 bg-secondary">
+        <CardTitle className="text-lg font-semibold text-foreground">Processing Statistics</CardTitle>
         <CardDescription>Summary of all data processed by the application</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="flex flex-col space-y-1">
+      <CardContent className="pt-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="flex flex-col space-y-2">
             <div className="text-sm text-muted-foreground flex items-center">
-              <FileText className="h-4 w-4 mr-1" />
+              <FileText className="h-4 w-4 mr-1 text-primary" />
               Total Files
             </div>
             <div className="text-2xl font-bold">{stats.totalFiles}</div>
           </div>
           
-          <div className="flex flex-col space-y-1">
+          <div className="flex flex-col space-y-2">
             <div className="text-sm text-muted-foreground flex items-center">
-              <Users className="h-4 w-4 mr-1" />
+              <Users className="h-4 w-4 mr-1 text-primary" />
               Total Records
             </div>
             <div className="text-2xl font-bold">{stats.totalRecords}</div>
           </div>
           
-          <div className="flex flex-col space-y-1">
+          <div className="flex flex-col space-y-2">
             <div className="text-sm text-muted-foreground flex items-center">
-              <CheckCircle className="h-4 w-4 mr-1" />
+              <CheckCircle className="h-4 w-4 mr-1 text-primary" />
               Valid Records
             </div>
             <div className="text-2xl font-bold">{stats.validRecords}</div>
           </div>
           
-          <div className="flex flex-col space-y-1">
+          <div className="flex flex-col space-y-2">
             <div className="text-sm text-muted-foreground flex items-center">
-              <AlertCircle className="h-4 w-4 mr-1" />
+              <AlertCircle className="h-4 w-4 mr-1 text-primary" />
               Rejected Records
             </div>
             <div className="text-2xl font-bold">{stats.rejectedRecords}</div>
