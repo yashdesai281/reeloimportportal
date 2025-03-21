@@ -23,14 +23,23 @@ export interface ContactsColumnMapping {
   tags: string;
 }
 
+export interface ProcessingStats {
+  totalRecords: number;
+  validRecords: number;
+  rejectedRecords: number;
+  duplicateRecords?: number;
+}
+
 export interface ProcessFileResult {
   transactionData: Blob;
   transactionFileName: string;
   rawData: any[][];
   hasContactData: boolean;
+  stats: ProcessingStats;
 }
 
 export interface ContactsFileResult {
   data: Blob;
   fileName: string;
+  stats: ProcessingStats;
 }

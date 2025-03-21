@@ -62,12 +62,63 @@ export const formatPhoneNumber = (phoneNumber: string): string => {
     formattedNumber = formattedNumber.slice(-10);
   }
   
-  // Validate that it's a proper Indian mobile number (starts with 6-9)
-  if (formattedNumber.length === 10 && !/^[6-9]/.test(formattedNumber)) {
-    console.warn(`Invalid Indian mobile number format: ${formattedNumber}`);
-  }
-  
   return formattedNumber;
+};
+
+/**
+ * Validates if a mobile number is valid according to requirements:
+ * - Must have exactly 10 digits
+ * - Must start with 6 or higher
+ */
+export const validateMobileNumber = (phoneNumber: string): boolean => {
+  if (!phoneNumber) return false;
+  
+  const formattedNumber = formatPhoneNumber(phoneNumber);
+  
+  // Check if it has 10 digits and starts with 6-9
+  return formattedNumber.length === 10 && /^[6-9]/.test(formattedNumber);
+};
+
+/**
+ * Formats a date string to YYYY-MM-DD HH:MM:SS format
+ */
+export const formatDateString = (dateStr: string): string => {
+  if (!dateStr) return '';
+  
+  try {
+    const date = new Date(dateStr);
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return dateStr; // Return original if invalid
+    }
+    
+    // Format to YYYY-MM-DD HH:MM:SS
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return dateStr; // Return original if error
+  }
+};
+
+/**
+ * Cleans a name string to contain only text and spaces
+ */
+export const cleanNameString = (name: string): string => {
+  if (!name) return '';
+  
+  // Convert to string and trim
+  const nameStr = String(name).trim();
+  
+  // Replace anything that's not a letter, space, or typical name characters
+  return nameStr.replace(/[^a-zA-Z\s'-]/g, '');
 };
 
 /**
@@ -109,6 +160,27 @@ export const applyWorksheetStyling = (worksheet: XLSX.WorkSheet, headers: string
       case 'tags':
         colWidths[col] = 25; // Tags might be longer
         break;
+      case 'txn_type':
+        colWidths[col] = 15; // Transaction type
+        break;
+      case 'bill_number':
+        colWidths[col] = 15; // Bill number
+        break;
+      case 'bill_amount':
+        colWidths[col] = 15; // Bill amount
+        break;
+      case 'order_time':
+        colWidths[col] = 20; // Order time (date format)
+        break;
+      case 'points_earned':
+        colWidths[col] = 15; // Points earned
+        break;
+      case 'points_redeemed':
+        colWidths[col] = 15; // Points redeemed
+        break;
+      case 'rejection_reason':
+        colWidths[col] = 25; // Rejection reason
+        break;
       default:
         colWidths[col] = 15; // Default width
     }
@@ -131,4 +203,3 @@ export const applyWorksheetStyling = (worksheet: XLSX.WorkSheet, headers: string
     worksheet[cellRef].s = headerStyle;
   }
 };
-

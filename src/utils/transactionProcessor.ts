@@ -3,7 +3,13 @@ import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
 import { ProcessFileResult, ColumnMapping } from './types';
 import { columnLabelToIndex } from './columnUtils';
-import { workbookToBlob, formatPhoneNumber } from './excelUtils';
+import { 
+  workbookToBlob, 
+  formatPhoneNumber, 
+  formatDateString, 
+  validateMobileNumber,
+  applyWorksheetStyling 
+} from './excelUtils';
 
 /**
  * Process a transaction file with the given column mapping
@@ -33,8 +39,12 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
     // Define headers for the output file
     const transactionHeaders = ["mobile", "txn_type", "bill_number", "bill_amount", "order_time", "points_earned", "points_redeemed"];
     
+    // Define headers for the rejected records file
+    const rejectedHeaders = ["mobile", "txn_type", "bill_number", "bill_amount", "order_time", "points_earned", "points_redeemed", "rejection_reason"];
+    
     // Initialize with headers
     const transactionData: any[][] = [transactionHeaders];
+    const rejectedData: any[][] = [rejectedHeaders];
     
     // Convert column labels to indices
     const columnIndices = {
@@ -47,6 +57,9 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
     };
     
     console.log("Mapped column indices:", columnIndices);
+    
+    let validRecords = 0;
+    let rejectedRecords = 0;
     
     // Skip the header row and process each data row
     for (let i = 1; i < rawData.length; i++) {
@@ -63,60 +76,82 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
       // Check if row has any data
       const hasData = row.some((cell: any) => cell !== undefined && cell !== null && cell !== "");
       
-      if (hasData) {
-        // Process mobile number (required)
-        if (columnIndices.mobile >= 0 && row[columnIndices.mobile] !== undefined) {
-          // Format phone number to remove prefixes like +91 or 91
-          newRow[0] = formatPhoneNumber(String(row[columnIndices.mobile] || ""));
-          
-          // Log the original and formatted mobile numbers to help debug
-          console.log(`Row ${i} - Original mobile: ${row[columnIndices.mobile]}, Formatted: ${newRow[0]}`);
-        }
+      if (!hasData) {
+        continue; // Skip completely empty rows
+      }
+      
+      // Process mobile number (required)
+      let mobileNumber = "";
+      let rejectionReason = "";
+      
+      if (columnIndices.mobile >= 0 && row[columnIndices.mobile] !== undefined) {
+        // Format phone number to remove prefixes like +91 or 91
+        mobileNumber = formatPhoneNumber(String(row[columnIndices.mobile] || ""));
+        newRow[0] = mobileNumber;
         
-        // Process bill number
-        if (columnIndices.bill_number >= 0 && row[columnIndices.bill_number] !== undefined) {
-          newRow[2] = String(row[columnIndices.bill_number] || "").trim();
+        // Validate the mobile number
+        if (!mobileNumber) {
+          rejectionReason = "Missing mobile number";
+        } else if (mobileNumber.length < 10) {
+          rejectionReason = "Mobile number has fewer than 10 digits";
+        } else if (!/^[6-9]/.test(mobileNumber)) {
+          rejectionReason = "Mobile number starts with digit 5 or lower";
         }
-        
-        // Process bill amount
-        if (columnIndices.bill_amount >= 0 && row[columnIndices.bill_amount] !== undefined) {
-          newRow[3] = String(row[columnIndices.bill_amount] || "").trim();
-        }
-        
-        // Process order time
-        if (columnIndices.order_time >= 0 && row[columnIndices.order_time] !== undefined) {
-          newRow[4] = String(row[columnIndices.order_time] || "").trim();
-        }
-        
-        // Process points earned
-        if (columnIndices.points_earned >= 0 && row[columnIndices.points_earned] !== undefined) {
-          newRow[5] = String(row[columnIndices.points_earned] || "").trim();
-        }
-        
-        // Process points redeemed
-        if (columnIndices.points_redeemed >= 0 && row[columnIndices.points_redeemed] !== undefined) {
-          newRow[6] = String(row[columnIndices.points_redeemed] || "").trim();
-        }
-        
-        // Add row to the output data
+      } else {
+        rejectionReason = "Missing mobile number column";
+      }
+      
+      // Process bill number
+      if (columnIndices.bill_number >= 0 && row[columnIndices.bill_number] !== undefined) {
+        newRow[2] = String(row[columnIndices.bill_number] || "").trim();
+      }
+      
+      // Process bill amount
+      if (columnIndices.bill_amount >= 0 && row[columnIndices.bill_amount] !== undefined) {
+        newRow[3] = String(row[columnIndices.bill_amount] || "").trim();
+      }
+      
+      // Process order time - now with date formatting
+      if (columnIndices.order_time >= 0 && row[columnIndices.order_time] !== undefined) {
+        newRow[4] = formatDateString(String(row[columnIndices.order_time] || ""));
+      }
+      
+      // Process points earned
+      if (columnIndices.points_earned >= 0 && row[columnIndices.points_earned] !== undefined) {
+        newRow[5] = String(row[columnIndices.points_earned] || "").trim();
+      }
+      
+      // Process points redeemed
+      if (columnIndices.points_redeemed >= 0 && row[columnIndices.points_redeemed] !== undefined) {
+        newRow[6] = String(row[columnIndices.points_redeemed] || "").trim();
+      }
+      
+      // Add row to the appropriate output data array
+      if (rejectionReason) {
+        // Add row to rejected data with reason
+        const rejectedRow = [...newRow, rejectionReason];
+        rejectedData.push(rejectedRow);
+        rejectedRecords++;
+      } else {
+        // Add row to valid transaction data
         transactionData.push(newRow);
+        validRecords++;
       }
     }
     
-    console.log(`Transaction data prepared, ${transactionData.length} rows (including header)`);
+    console.log(`Transaction data prepared, ${transactionData.length} valid rows (including header), ${rejectedData.length - 1} rejected rows`);
     
-    // Create a worksheet from the data
+    // Create worksheets from the data
     const transactionWS = XLSX.utils.aoa_to_sheet(transactionData);
+    const rejectedWS = XLSX.utils.aoa_to_sheet(rejectedData);
     
-    // Apply some formatting to make the headers stand out
-    const headerStyle = { font: { bold: true }, fill: { fgColor: { rgb: "EFEFEF" } } };
-    for (let i = 0; i < transactionHeaders.length; i++) {
-      const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
-      transactionWS[cellRef].s = headerStyle;
-    }
+    // Apply styling to both worksheets
+    applyWorksheetStyling(transactionWS, transactionHeaders);
+    applyWorksheetStyling(rejectedWS, rejectedHeaders);
     
-    // Add the worksheet to the workbook
+    // Add the worksheets to the workbook
     XLSX.utils.book_append_sheet(transactionWB, transactionWS, "Transactions");
+    XLSX.utils.book_append_sheet(transactionWB, rejectedWS, "Rejected");
     
     // Generate a filename with timestamp
     const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, -5);
@@ -130,12 +165,15 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
       index > 0 && row[0] !== undefined && row[0] !== null && row[0] !== ""
     );
     
-    // Save processing record to Supabase
+    // Save processing record to Supabase with statistics
     try {
       const { error } = await supabase.from('processed_files').insert({
         file_name: transactionFileName,
         original_file_name: file.name,
         column_mapping: columnMapping,
+        total_records: validRecords + rejectedRecords,
+        valid_records: validRecords,
+        rejected_records: rejectedRecords
       });
       
       if (error) {
@@ -150,7 +188,12 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
       transactionData: transactionBlob,
       transactionFileName,
       rawData,
-      hasContactData
+      hasContactData,
+      stats: {
+        totalRecords: validRecords + rejectedRecords,
+        validRecords,
+        rejectedRecords
+      }
     };
   } catch (error) {
     console.error("Error in processFile:", error);

@@ -1,7 +1,14 @@
+
 import * as XLSX from 'xlsx';
 import { ContactsColumnMapping, ContactsFileResult } from './types';
 import { columnLabelToIndex } from './columnUtils';
-import { workbookToBlob, formatPhoneNumber, applyWorksheetStyling } from './excelUtils';
+import { 
+  workbookToBlob, 
+  formatPhoneNumber, 
+  validateMobileNumber, 
+  cleanNameString,
+  applyWorksheetStyling 
+} from './excelUtils';
 
 /**
  * Generate a contacts file from raw data using the specified column mapping
@@ -15,7 +22,10 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
     
     // Ensure the headers are in the correct order as requested
     const contactsHeaders = ["mobile", "name", "email", "birthday", "anniversary", "gender", "points", "tags"];
+    const rejectedHeaders = ["mobile", "name", "email", "birthday", "anniversary", "gender", "points", "tags", "rejection_reason"];
+    
     const contactsData: any[][] = [contactsHeaders];
+    const rejectedData: any[][] = [rejectedHeaders];
 
     // Convert column labels to indices
     const columnIndex = {
@@ -33,6 +43,10 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
 
     // Create a map to track unique mobile numbers to avoid duplicates
     const uniqueMobileNumbers = new Map<string, any[]>();
+    
+    let validRecords = 0;
+    let rejectedRecords = 0;
+    let duplicateRecords = 0;
 
     // Skip the header row and process each data row
     for (let i = 1; i < rawData.length; i++) {
@@ -46,18 +60,32 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
       // [mobile, name, email, birthday, anniversary, gender, points, tags]
       const newRow = ["", "", "", "", "", "", "", ""];
       let hasValidData = false;
+      let rejectionReason = "";
 
       // Process mobile (required) - index 0
       if (columnIndex.mobile >= 0 && row[columnIndex.mobile] !== undefined) {
         const mobileValue = formatPhoneNumber(String(row[columnIndex.mobile] || ""));
         newRow[0] = mobileValue;
-        // Only consider the row valid if it has a non-empty mobile number
-        hasValidData = hasValidData || !!mobileValue;
+        
+        // Validate the mobile number
+        if (!mobileValue) {
+          rejectionReason = "Missing mobile number";
+        } else if (mobileValue.length < 10) {
+          rejectionReason = "Mobile number has fewer than 10 digits";
+        } else if (!/^[6-9]/.test(mobileValue)) {
+          rejectionReason = "Mobile number starts with digit 5 or lower";
+        } else {
+          // Only consider the row valid if it has a valid mobile number
+          hasValidData = true;
+        }
+      } else {
+        rejectionReason = "Missing mobile number column";
       }
 
       // Process name - index 1
       if (columnIndex.name >= 0 && row[columnIndex.name] !== undefined) {
-        newRow[1] = String(row[columnIndex.name] || "").trim();
+        // Clean the name to contain only text and spaces
+        newRow[1] = cleanNameString(String(row[columnIndex.name] || ""));
         hasValidData = hasValidData || !!newRow[1];
       }
 
@@ -97,18 +125,24 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
         hasValidData = hasValidData || !!newRow[7];
       }
 
-      // Only add row if it has at least some valid data and a mobile number
-      if (hasValidData && newRow[0]) {
+      // Handle the row based on validation results
+      if (rejectionReason) {
+        // Add to rejected data with reason
+        rejectedData.push([...newRow, rejectionReason]);
+        rejectedRecords++;
+      } 
+      else if (hasValidData && newRow[0]) {
         const mobileNumber = newRow[0];
         
         // Check if this mobile number already exists
         if (!uniqueMobileNumbers.has(mobileNumber)) {
           // If it's a new number, store the row
           uniqueMobileNumbers.set(mobileNumber, newRow);
+          validRecords++;
         } else {
-          // If duplicate, we might want to merge data or keep the most complete record
-          // For now, we'll keep the first occurrence (could be enhanced to keep the most complete record)
-          console.log(`Duplicate mobile number found: ${mobileNumber}`);
+          // If duplicate, add to rejected with reason
+          rejectedData.push([...newRow, "Duplicate mobile number"]);
+          duplicateRecords++;
         }
       }
     }
@@ -118,16 +152,19 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
       contactsData.push(row);
     });
 
-    console.log(`Contacts data prepared, ${contactsData.length} rows (including header), ${uniqueMobileNumbers.size} unique mobile numbers`);
+    console.log(`Contacts data prepared, ${contactsData.length} rows (including header), ${uniqueMobileNumbers.size} unique mobile numbers, ${rejectedData.length - 1} rejected rows`);
 
-    // Create a worksheet from the data
+    // Create worksheets from the data
     const contactsWS = XLSX.utils.aoa_to_sheet(contactsData);
+    const rejectedWS = XLSX.utils.aoa_to_sheet(rejectedData);
     
     // Apply column styling and formatting
     applyWorksheetStyling(contactsWS, contactsHeaders);
+    applyWorksheetStyling(rejectedWS, rejectedHeaders);
     
-    // Add the worksheet to the workbook
+    // Add the worksheets to the workbook
     XLSX.utils.book_append_sheet(contactsWB, contactsWS, "Contacts");
+    XLSX.utils.book_append_sheet(contactsWB, rejectedWS, "Rejected");
 
     // Generate a filename with timestamp
     const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, -5);
@@ -138,7 +175,13 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
 
     return {
       data: contactsBlob,
-      fileName: contactsFileName
+      fileName: contactsFileName,
+      stats: {
+        totalRecords: validRecords + rejectedRecords + duplicateRecords,
+        validRecords,
+        rejectedRecords,
+        duplicateRecords
+      }
     };
   } catch (error) {
     console.error("Error in generateContactsFile:", error);

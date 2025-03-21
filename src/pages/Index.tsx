@@ -7,13 +7,14 @@ import ContactsMapping from '@/components/ContactsMapping';
 import ContactsConfirmation from '@/components/ContactsConfirmation';
 import ProcessingStatus from '@/components/ProcessingStatus';
 import ProcessingHistory from '@/components/ProcessingHistory';
+import ProcessingStats from '@/components/ProcessingStats';
 import { 
   processFile, 
   downloadFile, 
   generateContactsFile, 
   ColumnMapping as ColumnMappingType,
   ContactsColumnMapping,
-  formatPhoneNumber 
+  ProcessingStats as ProcessingStatsType
 } from '@/utils/fileProcessing';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Upload, History } from 'lucide-react';
@@ -35,6 +36,7 @@ enum AppStep {
 interface ProcessedFile {
   data: Blob;
   fileName: string;
+  stats?: ProcessingStatsType;
 }
 
 const Index = () => {
@@ -49,6 +51,12 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [viewMode, setViewMode] = useState<'upload' | 'history'>('upload');
   const [processingError, setProcessingError] = useState<Error | null>(null);
+  const [currentStats, setCurrentStats] = useState<{
+    totalFiles: number;
+    totalRecords: number;
+    validRecords: number;
+    rejectedRecords: number;
+  } | null>(null);
 
   // Check Supabase connection on load
   useEffect(() => {
@@ -99,10 +107,19 @@ const Index = () => {
         
         setTransactionFile({
           data: result.transactionData,
-          fileName: result.transactionFileName
+          fileName: result.transactionFileName,
+          stats: result.stats
         });
         setRawFileData(result.rawData);
         setHasContactData(result.hasContactData);
+        
+        // Update current stats
+        setCurrentStats({
+          totalFiles: 1,
+          totalRecords: result.stats.totalRecords,
+          validRecords: result.stats.validRecords,
+          rejectedRecords: result.stats.rejectedRecords
+        });
         
         if (result.hasContactData) {
           setCurrentStep(AppStep.CONTACTS_CONFIRMATION);
@@ -152,7 +169,23 @@ const Index = () => {
         const result = await generateContactsFile(rawFileData, mapping);
         console.log("Contacts file generation complete");
         
-        setContactsFile(result);
+        setContactsFile({
+          data: result.data,
+          fileName: result.fileName,
+          stats: result.stats
+        });
+        
+        // Update current stats to include contacts file stats
+        setCurrentStats(prevStats => {
+          if (!prevStats) return null;
+          return {
+            totalFiles: prevStats.totalFiles + 1,
+            totalRecords: prevStats.totalRecords + result.stats.totalRecords,
+            validRecords: prevStats.validRecords + result.stats.validRecords,
+            rejectedRecords: prevStats.rejectedRecords + (result.stats.rejectedRecords + (result.stats.duplicateRecords || 0))
+          };
+        });
+        
         setCurrentStep(AppStep.COMPLETE);
         toast({
           title: "Success",
@@ -203,6 +236,7 @@ const Index = () => {
     setTransactionFile(null);
     setContactsFile(null);
     setProcessingError(null);
+    setCurrentStats(null);
   };
 
   // Navigation handler
@@ -238,7 +272,8 @@ const Index = () => {
     hasContactData,
     hasTransactionFile: !!transactionFile,
     hasContactsFile: !!contactsFile,
-    hasError: !!processingError
+    hasError: !!processingError,
+    currentStats
   });
 
   return (
@@ -378,6 +413,11 @@ const Index = () => {
             <ProcessingHistory />
           </div>
         )}
+        
+        {/* Processing Stats Component - Always visible at the bottom */}
+        <div className="w-full max-w-2xl mx-auto mt-12">
+          <ProcessingStats currentStats={currentStats} />
+        </div>
       </main>
 
       <footer className="w-full py-6 border-t bg-white/50 backdrop-blur-sm">
