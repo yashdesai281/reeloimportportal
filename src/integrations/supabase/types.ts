@@ -9,36 +9,7 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      processed_files: {
-        Row: {
-          column_mapping: Json
-          created_at: string | null
-          file_name: string
-          id: string
-          original_file_name: string
-          status: string
-          user_id: string | null
-        }
-        Insert: {
-          column_mapping: Json
-          created_at?: string | null
-          file_name: string
-          id?: string
-          original_file_name: string
-          status?: string
-          user_id?: string | null
-        }
-        Update: {
-          column_mapping?: Json
-          created_at?: string | null
-          file_name?: string
-          id?: string
-          original_file_name?: string
-          status?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
