@@ -111,9 +111,14 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
         newRow[3] = String(row[columnIndices.bill_amount] || "").trim();
       }
       
-      // Process order time - now with date formatting
+      // Process order time - with enhanced date formatting
       if (columnIndices.order_time >= 0 && row[columnIndices.order_time] !== undefined) {
-        newRow[4] = formatDateString(String(row[columnIndices.order_time] || ""));
+        const rawDate = String(row[columnIndices.order_time] || "");
+        if (rawDate) {
+          // Log the date before and after formatting for debugging
+          console.log(`Row ${i}: Original date "${rawDate}", Formatted: "${formatDateString(rawDate)}"`);
+          newRow[4] = formatDateString(rawDate);
+        }
       }
       
       // Process points earned
