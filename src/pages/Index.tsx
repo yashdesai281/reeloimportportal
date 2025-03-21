@@ -8,6 +8,7 @@ import ContactsConfirmation from '@/components/ContactsConfirmation';
 import ProcessingStatus from '@/components/ProcessingStatus';
 import ProcessingHistory from '@/components/ProcessingHistory';
 import ProcessingStats from '@/components/ProcessingStats';
+import ReeloLogo from '@/components/ReeloLogo';
 import { 
   processFile, 
   downloadFile, 
@@ -280,6 +281,7 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-white to-secondary/30 flex flex-col items-center px-4">
       <header className="w-full py-8 text-center">
         <div className="max-w-4xl mx-auto">
+          <ReeloLogo className="mx-auto mb-6" />
           <div className="inline-block mb-2 px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
             Transaction File Import
           </div>
@@ -421,8 +423,9 @@ const Index = () => {
       </main>
 
       <footer className="w-full py-6 border-t bg-white/50 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-4 text-center text-sm text-muted-foreground">
-          Transaction File Import Portal — Process your transaction data with ease.
+        <div className="max-w-4xl mx-auto px-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <ReeloLogo width={30} height={30} />
+          <span>Transaction File Import Portal — Process your transaction data with ease.</span>
         </div>
       </footer>
     </div>
