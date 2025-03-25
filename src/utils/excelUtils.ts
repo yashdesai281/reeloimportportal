@@ -3,20 +3,21 @@ import * as XLSX from 'xlsx';
 import { formatDateString } from './dateUtils';
 
 /**
- * Utilities for working with Excel files
+ * Utilities for working with Excel files and CSV exports
  */
 
 /**
  * Converts a workbook to a Blob for file download
  */
-export const workbookToBlob = (workbook: XLSX.WorkBook): Promise<Blob> => {
+export const workbookToBlob = (workbook: XLSX.WorkBook, fileType: 'xlsx' | 'csv' = 'csv'): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     try {
-      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([new Uint8Array(wbout)], { type: 'application/octet-stream' });
+      const wbout = XLSX.write(workbook, { bookType: fileType, type: 'array' });
+      const mimeType = fileType === 'csv' ? 'text/csv' : 'application/octet-stream';
+      const blob = new Blob([new Uint8Array(wbout)], { type: mimeType });
       resolve(blob);
     } catch (error) {
-      console.error("Error converting workbook to blob:", error);
+      console.error(`Error converting workbook to ${fileType}:`, error);
       reject(error);
     }
   });
@@ -180,3 +181,8 @@ export const applyWorksheetStyling = (worksheet: XLSX.WorkSheet, headers: string
     worksheet[cellRef].s = headerStyle;
   }
 };
+
+/**
+ * Export date formatting functions from dateUtils
+ */
+export { formatDateString };

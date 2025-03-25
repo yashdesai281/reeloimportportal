@@ -4,7 +4,7 @@ import { generateTimestamp } from './fileUtils';
 import { workbookToBlob, applyWorksheetStyling } from './excelUtils';
 
 /**
- * Creates and formats Excel workbooks for data export
+ * Creates and formats workbooks for data export as CSV
  */
 export const createExcelWorkbook = (
   validData: any[][], 
@@ -30,7 +30,7 @@ export const createExcelWorkbook = (
   
   // Generate a filename with timestamp
   const timestamp = generateTimestamp();
-  const fileName = `${sheetNames.valid.toLowerCase()}_${timestamp}.xlsx`;
+  const fileName = `${sheetNames.valid.toLowerCase()}_${timestamp}.csv`;
   
   return Promise.resolve({ workbook, fileName });
 };

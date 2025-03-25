@@ -168,10 +168,10 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
 
     // Generate a filename with timestamp
     const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, -5);
-    const contactsFileName = `contacts_${timestamp}.xlsx`;
+    const contactsFileName = `contacts_${timestamp}.csv`;
 
-    // Convert the workbook to a Blob for download
-    const contactsBlob = await workbookToBlob(contactsWB);
+    // Convert the workbook to a CSV Blob for download
+    const contactsBlob = await workbookToBlob(contactsWB, 'csv');
 
     return {
       data: contactsBlob,

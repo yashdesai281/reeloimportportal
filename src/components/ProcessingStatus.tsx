@@ -49,7 +49,7 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
             <h3 className="text-xl font-medium text-center">Processing Complete</h3>
             
             <p className="mt-2 text-muted-foreground text-center">
-              Your files are ready for download
+              Your CSV files are ready for download
             </p>
             
             <div className="mt-8 w-full space-y-4">
@@ -60,7 +60,7 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
                       <FileText className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">Transaction File</p>
+                      <p className="font-medium">Transaction File (CSV)</p>
                       <p className="text-xs text-muted-foreground">{transactionFileName}</p>
                     </div>
                   </div>
@@ -82,7 +82,7 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
                       <Users className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">Contacts File</p>
+                      <p className="font-medium">Contacts File (CSV)</p>
                       <p className="text-xs text-muted-foreground">{contactsFileName}</p>
                     </div>
                   </div>

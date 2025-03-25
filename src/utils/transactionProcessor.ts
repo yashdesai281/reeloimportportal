@@ -6,9 +6,9 @@ import { columnLabelToIndex } from './columnUtils';
 import { 
   workbookToBlob, 
   formatPhoneNumber, 
-  formatDateString, 
   validateMobileNumber
 } from './excelUtils';
+import { formatDateString } from './dateUtils';
 import { extractDataFromFile, createExcelWorkbook } from './fileOperations';
 
 /**
@@ -141,8 +141,8 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
       { valid: "Transactions", rejected: "Rejected" }
     );
     
-    // Convert the workbook to a Blob for download
-    const transactionBlob = await workbookToBlob(transactionWB);
+    // Convert the workbook to a CSV Blob for download
+    const transactionBlob = await workbookToBlob(transactionWB, 'csv');
     
     // Check if we have any mobile numbers for contacts
     const hasContactData = transactionData.some((row, index) => 
