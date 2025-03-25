@@ -7,9 +7,9 @@ import {
   workbookToBlob, 
   formatPhoneNumber, 
   formatDateString, 
-  validateMobileNumber,
-  applyWorksheetStyling 
+  validateMobileNumber
 } from './excelUtils';
+import { extractDataFromFile, createExcelWorkbook } from './fileOperations';
 
 /**
  * Process a transaction file with the given column mapping
@@ -19,27 +19,12 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
     console.log("Processing file:", file.name);
     console.log("With column mapping:", columnMapping);
     
-    // Read the uploaded file
-    const arrayBuffer = await file.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer);
-    const firstSheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheetName];
-    
-    // Convert to array of arrays
-    const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
+    // Extract data from file
+    const { rawData } = await extractDataFromFile(file);
     console.log(`Raw data loaded, ${rawData.length} rows found`);
     
-    if (rawData.length <= 1) {
-      throw new Error("File contains no data rows");
-    }
-    
-    // Create a new workbook for the processed transactions
-    const transactionWB = XLSX.utils.book_new();
-    
-    // Define headers for the output file
+    // Define headers for the output files
     const transactionHeaders = ["mobile", "txn_type", "bill_number", "bill_amount", "order_time", "points_earned", "points_redeemed"];
-    
-    // Define headers for the rejected records file
     const rejectedHeaders = ["mobile", "txn_type", "bill_number", "bill_amount", "order_time", "points_earned", "points_redeemed", "rejection_reason"];
     
     // Initialize with headers
@@ -116,8 +101,9 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
         const rawDate = String(row[columnIndices.order_time] || "");
         if (rawDate) {
           // Log the date before and after formatting for debugging
-          console.log(`Row ${i}: Original date "${rawDate}", Formatted: "${formatDateString(rawDate)}"`);
-          newRow[4] = formatDateString(rawDate);
+          const formattedDate = formatDateString(rawDate);
+          console.log(`Row ${i}: Original date "${rawDate}", Formatted: "${formattedDate}"`);
+          newRow[4] = formattedDate;
         }
       }
       
@@ -146,21 +132,14 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
     
     console.log(`Transaction data prepared, ${transactionData.length} valid rows (including header), ${rejectedData.length - 1} rejected rows`);
     
-    // Create worksheets from the data
-    const transactionWS = XLSX.utils.aoa_to_sheet(transactionData);
-    const rejectedWS = XLSX.utils.aoa_to_sheet(rejectedData);
-    
-    // Apply styling to both worksheets
-    applyWorksheetStyling(transactionWS, transactionHeaders);
-    applyWorksheetStyling(rejectedWS, rejectedHeaders);
-    
-    // Add the worksheets to the workbook
-    XLSX.utils.book_append_sheet(transactionWB, transactionWS, "Transactions");
-    XLSX.utils.book_append_sheet(transactionWB, rejectedWS, "Rejected");
-    
-    // Generate a filename with timestamp
-    const timestamp = new Date().toISOString().replace(/:/g, '-').slice(0, -5);
-    const transactionFileName = `transaction_${timestamp}.xlsx`;
+    // Create the Excel workbook for transactions
+    const { workbook: transactionWB, fileName: transactionFileName } = await createExcelWorkbook(
+      transactionData,
+      rejectedData,
+      transactionHeaders,
+      rejectedHeaders,
+      { valid: "Transactions", rejected: "Rejected" }
+    );
     
     // Convert the workbook to a Blob for download
     const transactionBlob = await workbookToBlob(transactionWB);
