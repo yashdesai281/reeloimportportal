@@ -81,9 +81,7 @@ export const validateMobileNumber = (phoneNumber: string): boolean => {
   return formattedNumber.length === 10 && /^[6-9]/.test(formattedNumber);
 };
 
-/**
- * Export date formatting functions from dateUtils
- */
+// We're already importing formatDateString from dateUtils, so we can just re-export it
 export { formatDateString };
 
 /**
@@ -181,8 +179,3 @@ export const applyWorksheetStyling = (worksheet: XLSX.WorkSheet, headers: string
     worksheet[cellRef].s = headerStyle;
   }
 };
-
-/**
- * Export date formatting functions from dateUtils
- */
-export { formatDateString };
