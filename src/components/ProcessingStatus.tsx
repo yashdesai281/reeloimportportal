@@ -128,7 +128,7 @@ const ProcessingStatus: React.FC<ProcessingStatusProps> = ({
                       <FileText className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">Transaction File</p>
+                      <p className="font-medium">Transaction File (CSV)</p>
                       <p className="text-xs text-muted-foreground">{transactionFileName}</p>
                     </div>
                   </div>

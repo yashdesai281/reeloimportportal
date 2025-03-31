@@ -141,13 +141,15 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
       { valid: "Transactions", rejected: "Rejected" }
     );
     
-    // Convert the workbook to a CSV Blob for download
+    // Convert the workbook to a CSV Blob for download - explicitly specify 'csv'
     const transactionBlob = await workbookToBlob(transactionWB, 'csv');
     
-    // Check if we have any mobile numbers for contacts
+    // Check if we have any mobile numbers for contacts - this is crucial for contacts prompt
     const hasContactData = transactionData.some((row, index) => 
       index > 0 && row[0] !== undefined && row[0] !== null && row[0] !== ""
     );
+    
+    console.log(`Has contact data: ${hasContactData}, valid mobile numbers found: ${validRecords}`);
     
     // Save processing record to Supabase with statistics
     try {

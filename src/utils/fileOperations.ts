@@ -28,7 +28,7 @@ export const createExcelWorkbook = (
   XLSX.utils.book_append_sheet(workbook, validWS, sheetNames.valid);
   XLSX.utils.book_append_sheet(workbook, rejectedWS, sheetNames.rejected);
   
-  // Generate a filename with timestamp
+  // Generate a filename with timestamp - ensuring .csv extension
   const timestamp = generateTimestamp();
   const fileName = `${sheetNames.valid.toLowerCase()}_${timestamp}.csv`;
   
@@ -56,6 +56,7 @@ export const extractDataFromFile = (file: File): Promise<{ workbook: XLSX.WorkBo
       
       resolve({ workbook, rawData });
     } catch (error) {
+      console.error("Error extracting data from file:", error);
       reject(error);
     }
   });

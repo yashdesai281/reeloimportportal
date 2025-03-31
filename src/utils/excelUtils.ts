@@ -81,7 +81,7 @@ export const validateMobileNumber = (phoneNumber: string): boolean => {
   return formattedNumber.length === 10 && /^[6-9]/.test(formattedNumber);
 };
 
-// We're already importing formatDateString from dateUtils, so we can just re-export it
+// Re-export formatDateString from dateUtils
 export { formatDateString };
 
 /**
