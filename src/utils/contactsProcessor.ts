@@ -9,6 +9,7 @@ import {
   cleanNameString,
   applyWorksheetStyling 
 } from './excelUtils';
+import { parseFlexibleDateTime } from './dateUtils';
 
 /**
  * Generate a contacts file from raw data using the specified column mapping
@@ -97,13 +98,25 @@ export const generateContactsFile = async (rawData: any[][], mapping: ContactsCo
 
       // Process birthday - index 3
       if (columnIndex.birthday >= 0 && row[columnIndex.birthday] !== undefined) {
-        newRow[3] = String(row[columnIndex.birthday] || "").trim();
+        const rawBirthday = String(row[columnIndex.birthday] || "").trim();
+        if (rawBirthday) {
+          // Use our improved date parser with date-only format
+          const formattedBirthday = parseFlexibleDateTime(rawBirthday, 'yyyy-MM-dd');
+          newRow[3] = formattedBirthday || rawBirthday;
+          console.log(`Row ${i}: Original birthday "${rawBirthday}", Formatted: "${newRow[3]}"`);
+        }
         hasValidData = hasValidData || !!newRow[3];
       }
       
       // Process anniversary - index 4
       if (columnIndex.anniversary >= 0 && row[columnIndex.anniversary] !== undefined) {
-        newRow[4] = String(row[columnIndex.anniversary] || "").trim();
+        const rawAnniversary = String(row[columnIndex.anniversary] || "").trim();
+        if (rawAnniversary) {
+          // Use our improved date parser with date-only format
+          const formattedAnniversary = parseFlexibleDateTime(rawAnniversary, 'yyyy-MM-dd');
+          newRow[4] = formattedAnniversary || rawAnniversary;
+          console.log(`Row ${i}: Original anniversary "${rawAnniversary}", Formatted: "${newRow[4]}"`);
+        }
         hasValidData = hasValidData || !!newRow[4];
       }
       
