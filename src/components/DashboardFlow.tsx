@@ -141,7 +141,7 @@ const DashboardFlow: React.FC<DashboardFlowProps> = ({
                   <ErrorBoundary fallback={<ContactsMappingError onReset={resetApp} />}>
                     <ContactsMapping
                       onComplete={handleContactsMappingComplete}
-                      onCancel={() => setCurrentStep(AppStep.COMPLETE)}
+                      onCancel={resetApp}
                       rawData={rawFileData}
                     />
                   </ErrorBoundary>

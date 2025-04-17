@@ -7,7 +7,8 @@ import {
   generateContactsFile, 
   ColumnMapping,
   ContactsColumnMapping,
-  ProcessingStats
+  ProcessingStats,
+  downloadFile
 } from '@/utils/fileProcessing';
 import { isExcelFile } from '@/utils/fileUtils';
 
