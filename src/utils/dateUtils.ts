@@ -1,3 +1,4 @@
+
 import { parse, format, isValid } from 'date-fns';
 
 /**
@@ -103,9 +104,12 @@ export const parseMultiFormatDate = (dateStr: string): Date | null => {
 };
 
 /**
- * Formats a date string to YYYY-MM-DD HH:MM:SS format
+ * Formats a date string to the specified format (default: YYYY-MM-DD)
+ * @param dateStr Original date string in any format
+ * @param formatStr Output format pattern, defaults to yyyy-MM-dd
+ * @returns Formatted date string or original string if parsing fails
  */
-export const formatDateString = (dateStr: string): string => {
+export const formatDateString = (dateStr: string, formatStr: string = 'yyyy-MM-dd'): string => {
   if (!dateStr) return '';
   
   try {
@@ -117,10 +121,34 @@ export const formatDateString = (dateStr: string): string => {
       return dateStr; // Return original if invalid
     }
     
-    // Format to YYYY-MM-DD HH:MM:SS
-    return format(parsedDate, 'yyyy-MM-dd HH:mm:ss');
+    // Format to the desired pattern
+    return format(parsedDate, formatStr);
   } catch (error) {
     console.error("Error formatting date:", error);
     return dateStr; // Return original if error
+  }
+};
+
+/**
+ * Utility function for processing dates in import files
+ * Parses a date and returns it in the specified format.
+ * If the date cannot be parsed, returns an empty string or the original string.
+ */
+export const parseAndFormatDate = (
+  dateStr: string, 
+  outputFormat: string = 'yyyy-MM-dd', 
+  returnOriginalOnError: boolean = false
+): string => {
+  if (!dateStr) return '';
+  
+  try {
+    const parsedDate = parseMultiFormatDate(dateStr);
+    if (!parsedDate || !isValid(parsedDate)) {
+      return returnOriginalOnError ? dateStr : '';
+    }
+    return format(parsedDate, outputFormat);
+  } catch (error) {
+    console.error(`Error parsing date "${dateStr}":`, error);
+    return returnOriginalOnError ? dateStr : '';
   }
 };

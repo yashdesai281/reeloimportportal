@@ -8,7 +8,7 @@ import {
   formatPhoneNumber, 
   validateMobileNumber
 } from './excelUtils';
-import { formatDateString } from './dateUtils';
+import { parseAndFormatDate } from './dateUtils';
 import { extractDataFromFile, createExcelWorkbook } from './fileOperations';
 
 /**
@@ -100,8 +100,7 @@ export const processFile = async (file: File, columnMapping: ColumnMapping): Pro
       if (columnIndices.order_time >= 0 && row[columnIndices.order_time] !== undefined) {
         const rawDate = String(row[columnIndices.order_time] || "");
         if (rawDate) {
-          // Log the date before and after formatting for debugging
-          const formattedDate = formatDateString(rawDate);
+          const formattedDate = parseAndFormatDate(rawDate, 'yyyy-MM-dd HH:mm:ss');
           console.log(`Row ${i}: Original date "${rawDate}", Formatted: "${formattedDate}"`);
           newRow[4] = formattedDate;
         }
